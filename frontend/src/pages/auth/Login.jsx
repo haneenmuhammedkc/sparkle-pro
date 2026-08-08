@@ -25,6 +25,8 @@ const Login = ({
       } finally {
         setIsLoading(false);
       }
+    } else {
+      navigate('/setup/business');
     }
   };
 
@@ -36,6 +38,8 @@ const Login = ({
       } finally {
         setIsLoading(false);
       }
+    } else {
+      navigate('/setup/business');
     }
   };
 
@@ -96,7 +100,6 @@ const Login = ({
                 </div>
                 <input
                   type="email"
-                  required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@company.com"
@@ -116,7 +119,6 @@ const Login = ({
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
-                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"

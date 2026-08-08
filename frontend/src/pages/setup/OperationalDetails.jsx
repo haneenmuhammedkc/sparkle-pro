@@ -1,8 +1,10 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowRight, Clock, Users, Settings, ChevronDown } from "lucide-react";
 import Sidebar from "../../components/setup/Sidebar";
 
 export default function OperationalDetails({ onContinue, onBack }) {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(2);
   const totalSteps = 4;
 
@@ -26,6 +28,14 @@ export default function OperationalDetails({ onContinue, onBack }) {
     );
   };
 
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate('/setup/business');
+    }
+  };
+
   const handleSubmit = (e) => {
     e?.preventDefault();
     if (onContinue) {
@@ -38,9 +48,7 @@ export default function OperationalDetails({ onContinue, onBack }) {
         currency,
       });
     } else {
-      if (currentStep < totalSteps) {
-        setCurrentStep((prev) => prev + 1);
-      }
+      navigate('/setup/service');
     }
   };
 
@@ -56,7 +64,7 @@ export default function OperationalDetails({ onContinue, onBack }) {
           totalSteps={totalSteps}
           title={headerTitle}
           description={headerDescription}
-          onBack={onBack}
+          onBack={handleBack}
           onStepClick={(step) => setCurrentStep(step)}
         />
 
@@ -198,7 +206,7 @@ export default function OperationalDetails({ onContinue, onBack }) {
           totalSteps={totalSteps}
           title={headerTitle}
           description={headerDescription}
-          onBack={onBack}
+          onBack={handleBack}
           onStepClick={(step) => setCurrentStep(step)}
         />
 
@@ -336,7 +344,7 @@ export default function OperationalDetails({ onContinue, onBack }) {
             totalSteps={totalSteps}
             title={headerTitle}
             description={headerDescription}
-            onBack={onBack}
+            onBack={handleBack}
             onStepClick={(step) => setCurrentStep(step)}
           />
 

@@ -1,11 +1,16 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowRight, Check, Store } from "lucide-react";
 
 export default function BusinessReady({ onDashboardClick }) {
+  const navigate = useNavigate();
+
   const handleDashboardClick = (e) => {
     e?.preventDefault();
     if (onDashboardClick) {
       onDashboardClick();
+    } else {
+      navigate('/dashboard');
     }
   };
 

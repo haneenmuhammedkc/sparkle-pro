@@ -1,8 +1,10 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Store, Clock, LayoutList, Users, Check } from "lucide-react";
 import Sidebar from "../../components/setup/Sidebar";
 
 export default function ReviewLaunch({ onContinue, onBack }) {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(4);
   const totalSteps = 4;
 
@@ -12,14 +14,20 @@ export default function ReviewLaunch({ onContinue, onBack }) {
 
   const [agreed, setAgreed] = useState(false);
 
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate('/setup/service');
+    }
+  };
+
   const handleSubmit = (e) => {
     e?.preventDefault();
-    if (agreed && onContinue) {
+    if (onContinue) {
       onContinue({ agreed });
     } else {
-      if (currentStep < totalSteps) {
-        setCurrentStep((prev) => prev + 1);
-      }
+      navigate('/ready');
     }
   };
 
@@ -34,7 +42,7 @@ export default function ReviewLaunch({ onContinue, onBack }) {
           totalSteps={totalSteps}
           title={headerTitle}
           description={headerDescription}
-          onBack={onBack}
+          onBack={handleBack}
           onStepClick={(step) => setCurrentStep(step)}
         />
 
@@ -246,7 +254,7 @@ export default function ReviewLaunch({ onContinue, onBack }) {
           totalSteps={totalSteps}
           title={headerTitle}
           description={headerDescription}
-          onBack={onBack}
+          onBack={handleBack}
           onStepClick={(step) => setCurrentStep(step)}
         />
 

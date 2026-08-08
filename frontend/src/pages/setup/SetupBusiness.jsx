@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   Store,
@@ -13,6 +14,7 @@ import {
 import Sidebar from "../../components/setup/Sidebar";
 
 export default function SetupBusiness({ onContinue, onBack }) {
+  const navigate = useNavigate();
   // Wizard Step State
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
@@ -56,9 +58,7 @@ export default function SetupBusiness({ onContinue, onBack }) {
         logoPreview,
       });
     } else {
-      if (currentStep < totalSteps) {
-        setCurrentStep((prev) => prev + 1);
-      }
+      navigate("/setup/detail");
     }
   };
 

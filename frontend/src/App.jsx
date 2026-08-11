@@ -21,10 +21,20 @@ import OperationalDetails from './pages/setup/OperationalDetails'
 import ServicesPricing from './pages/setup/ServicePricing'
 import Review from './pages/setup/Review'
 
+import TrackVehicle from './pages/user/TrackVehicle'
+import VehicleDetails from './pages/user/VehicleDetails'
+
 const App = () => {
   return (
       <BrowserRouter>
         <Routes>
+          {/* User Side Pages */}
+          <Route path='/user/track' element={<TrackVehicle />} />
+          <Route path='/user/details' element={<VehicleDetails />} />
+          <Route path='/track' element={<TrackVehicle />} />
+          <Route path='/track/details' element={<VehicleDetails />} />
+          <Route path='/track/:id' element={<VehicleDetails />} />
+
           <Route path='/' element={<Login />} />
           <Route path='/dashboard' element={<AdminDashboard />} />
           <Route path='/jobs' element={<Jobs />} />

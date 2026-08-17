@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5001/api';
+const RAW_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_BASE_URL = RAW_BASE_URL.endsWith('/api') ? RAW_BASE_URL : `${RAW_BASE_URL.replace(/\/$/, '')}/api`;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -46,7 +47,7 @@ api.interceptors.response.use(
     // Handle Network / Connection Refused Errors (Backend Offline)
     if (!error.response) {
       if (error.code === 'ERR_NETWORK' || error.code === 'ERR_CONNECTION_REFUSED') {
-        error.message = 'Backend API server on port 5001 is offline. Please start the backend server.';
+        error.message = 'Backend API server is unreachable. Please check backend connection.';
       }
       return Promise.reject(error);
     }

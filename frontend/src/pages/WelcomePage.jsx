@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   Clock,
@@ -17,7 +18,24 @@ import {
 } from 'lucide-react';
 
 export default function WelcomePage({ onSetUp, onSkip, onContactSupport }) {
+  const navigate = useNavigate();
   const [selectedMobileCard, setSelectedMobileCard] = useState(3);
+
+  const handleSetUpClick = () => {
+    if (onSetUp) {
+      onSetUp();
+    } else {
+      navigate('/setup/business');
+    }
+  };
+
+  const handleSkipClick = () => {
+    if (onSkip) {
+      onSkip();
+    } else {
+      navigate('/setup/business');
+    }
+  };
 
   // Mobile feature cards data
   const mobileFeatures = [
@@ -211,7 +229,7 @@ export default function WelcomePage({ onSetUp, onSkip, onContactSupport }) {
             variants={fadeInVariants}
             whileHover={{ scale: 1.015 }}
             whileTap={{ scale: 0.98 }}
-            onClick={onSetUp}
+            onClick={handleSetUpClick}
             className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-3.5 px-6 rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm cursor-pointer mb-3 transition-colors"
           >
             <span>Set Up My Business</span>
@@ -220,7 +238,7 @@ export default function WelcomePage({ onSetUp, onSkip, onContactSupport }) {
 
           <motion.button
             variants={fadeInVariants}
-            onClick={onSkip}
+            onClick={handleSkipClick}
             className="text-xs font-semibold text-gray-500 hover:text-gray-900 transition-colors py-1 cursor-pointer"
           >
             Skip for Now
@@ -324,14 +342,14 @@ export default function WelcomePage({ onSetUp, onSkip, onContactSupport }) {
             <motion.button
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
-              onClick={onSetUp}
+              onClick={handleSetUpClick}
               className="w-full max-w-xs bg-black hover:bg-gray-800 text-white font-semibold py-3.5 px-6 rounded-xl text-sm transition shadow-sm cursor-pointer mx-auto block mb-3"
             >
               Set Up My Business
             </motion.button>
 
             <button
-              onClick={onSkip}
+              onClick={handleSkipClick}
               className="text-xs font-semibold text-gray-500 hover:text-gray-900 transition cursor-pointer mb-6"
             >
               Skip for Now
@@ -465,14 +483,14 @@ export default function WelcomePage({ onSetUp, onSkip, onContactSupport }) {
               <motion.button
                 whileHover={{ scale: 1.015 }}
                 whileTap={{ scale: 0.985 }}
-                onClick={onSetUp}
+                onClick={handleSetUpClick}
                 className="bg-black hover:bg-gray-800 text-white font-semibold py-3.5 px-8 rounded-xl text-sm transition shadow-sm cursor-pointer"
               >
                 Set Up My Business
               </motion.button>
 
               <button
-                onClick={onSkip}
+                onClick={handleSkipClick}
                 className="text-sm font-semibold text-gray-500 hover:text-gray-900 transition cursor-pointer"
               >
                 Skip for Now

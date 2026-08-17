@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Mail, Lock, Eye, EyeOff, Check, Loader2, Droplet } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Check, Loader2, Droplet, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 const Login = ({
   onSignIn,
@@ -10,23 +11,43 @@ const Login = ({
   onNeedHelpClick,
 }) => {
   const navigate = useNavigate();
+  const { login } = useAuth();
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (onSignIn) {
-      setIsLoading(true);
-      try {
+    setErrorMessage("");
+    setIsLoading(true);
+
+    try {
+      if (onSignIn) {
         await onSignIn({ email, password, rememberMe });
-      } finally {
-        setIsLoading(false);
+      } else {
+        const res = await login({ email, password });
+        if (res.success) {
+          const user = res.data?.user;
+          if (user?.setupCompleted) {
+            navigate('/dashboard');
+          } else {
+            navigate('/welcome');
+          }
+        }
       }
-    } else {
-      navigate('/setup/business');
+    } catch (err) {
+      if (err.response?.data?.data?.requiresVerification || err.response?.status === 403) {
+        navigate('/verify-email', { state: { email } });
+        return;
+      }
+      const msg = err.response?.data?.message || err.message || "Failed to sign in. Please check your credentials.";
+      setErrorMessage(msg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -87,6 +108,14 @@ const Login = ({
             </p>
           </div>
 
+          {/* Error Alert Banner */}
+          {errorMessage && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-xs font-semibold text-red-700">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Address Input */}
@@ -100,6 +129,7 @@ const Login = ({
                 </div>
                 <input
                   type="email"
+                  required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@company.com"
@@ -119,6 +149,7 @@ const Login = ({
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
+                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"

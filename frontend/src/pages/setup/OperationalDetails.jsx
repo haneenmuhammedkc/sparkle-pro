@@ -1,10 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Clock, Users, Settings, ChevronDown } from "lucide-react";
+import { ArrowRight, Clock, Users, Settings, ChevronDown, Loader2, AlertCircle } from "lucide-react";
 import Sidebar from "../../components/setup/Sidebar";
+import { useAuth } from "../../context/AuthContext.jsx";
+import * as businessService from "../../services/businessService.js";
 
 export default function OperationalDetails({ onContinue, onBack }) {
   const navigate = useNavigate();
+  const { business, setBusiness, fetchBusinessData } = useAuth();
+
   const [currentStep, setCurrentStep] = useState(2);
   const totalSteps = 4;
 
@@ -12,15 +16,39 @@ export default function OperationalDetails({ onContinue, onBack }) {
   const headerDescription =
     "Set your business hours and preferences to get your workshop ready.";
 
-  const [openingTime, setOpeningTime] = useState("09:00 AM");
-  const [closingTime, setClosingTime] = useState("06:00 PM");
-  const [selectedHolidays, setSelectedHolidays] = useState(["Sat", "Sun"]);
-  const [staffCount, setStaffCount] = useState("1-5 Staff Members");
+  const [openingTime, setOpeningTime] = useState(business?.openingTime || "09:00 AM");
+  const [closingTime, setClosingTime] = useState(business?.closingTime || "06:00 PM");
+  const [selectedHolidays, setSelectedHolidays] = useState(business?.weeklyHolidays || ["Sat", "Sun"]);
+  const [staffCount, setStaffCount] = useState(business?.staffCount || "1-5 Staff Members");
   const [isStaffDropdownOpen, setIsStaffDropdownOpen] = useState(false);
-  const [isSoloOperator, setIsSoloOperator] = useState(false);
-  const [currency] = useState("Indian Rupee (₹)");
+  const [isSoloOperator, setIsSoloOperator] = useState(business?.isSoloOperator || false);
+  const [currency, setCurrency] = useState(business?.currency || "Indian Rupee (₹)");
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  // Verify Business exists in MongoDB on mount
+  useEffect(() => {
+    const verifyAndLoad = async () => {
+      let currentBiz = business;
+      if (!currentBiz) {
+        currentBiz = await fetchBusinessData();
+      }
+      if (!currentBiz) {
+        navigate('/setup/business', { replace: true });
+        return;
+      }
+      if (currentBiz.openingTime) setOpeningTime(currentBiz.openingTime);
+      if (currentBiz.closingTime) setClosingTime(currentBiz.closingTime);
+      if (currentBiz.weeklyHolidays) setSelectedHolidays(currentBiz.weeklyHolidays);
+      if (currentBiz.staffCount) setStaffCount(currentBiz.staffCount);
+      if (currentBiz.isSoloOperator !== undefined) setIsSoloOperator(currentBiz.isSoloOperator);
+      if (currentBiz.currency) setCurrency(currentBiz.currency);
+    };
+
+    verifyAndLoad();
+  }, [business]);
 
   const toggleHoliday = (day) => {
     setSelectedHolidays((prev) =>
@@ -36,19 +64,51 @@ export default function OperationalDetails({ onContinue, onBack }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleStepClick = (step) => {
+    if (step === 1) navigate('/setup/business');
+    else if (step === 2) navigate('/setup/detail');
+    else if (step === 3) navigate('/setup/service');
+    else if (step === 4) navigate('/setup/review');
+  };
+
+  const handleSubmit = async (e) => {
     e?.preventDefault();
-    if (onContinue) {
-      onContinue({
+    setErrorMessage("");
+
+    if (openingTime && closingTime && openingTime === closingTime) {
+      setErrorMessage("Closing time cannot be equal to opening time.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const payload = {
         openingTime,
         closingTime,
         selectedHolidays,
         staffCount,
         isSoloOperator,
         currency,
-      });
-    } else {
-      navigate('/setup/service');
+      };
+
+      const res = await businessService.saveStep2Operations(payload);
+      if (res && res.success && res.data) {
+        setBusiness(res.data);
+        if (onContinue) {
+          onContinue(payload);
+        } else {
+          navigate('/setup/service');
+        }
+      } else {
+        const msg = res?.message || "Failed to save operational details.";
+        setErrorMessage(msg);
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to save operational details. Please check your backend connection.";
+      setErrorMessage(msg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -65,8 +125,15 @@ export default function OperationalDetails({ onContinue, onBack }) {
           title={headerTitle}
           description={headerDescription}
           onBack={handleBack}
-          onStepClick={(step) => setCurrentStep(step)}
+          onStepClick={handleStepClick}
         />
+
+        {errorMessage && (
+          <div className="mb-4 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-red-700 shadow-2xs">
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-xs space-y-4">
@@ -207,7 +274,7 @@ export default function OperationalDetails({ onContinue, onBack }) {
           title={headerTitle}
           description={headerDescription}
           onBack={handleBack}
-          onStepClick={(step) => setCurrentStep(step)}
+          onStepClick={handleStepClick}
         />
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -345,7 +412,7 @@ export default function OperationalDetails({ onContinue, onBack }) {
             title={headerTitle}
             description={headerDescription}
             onBack={handleBack}
-            onStepClick={(step) => setCurrentStep(step)}
+            onStepClick={handleStepClick}
           />
 
           <form

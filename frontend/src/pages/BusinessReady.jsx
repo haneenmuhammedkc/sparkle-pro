@@ -1,9 +1,14 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Check, Store } from "lucide-react";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function BusinessReady({ onDashboardClick }) {
   const navigate = useNavigate();
+  const { user, business } = useAuth();
+
+  const businessName = business?.name || (user?.fullName ? `${user.fullName}'s Workshop` : "Auto Workshop");
+  const staffCountText = business?.staffCount || (business?.isSoloOperator ? "Solo Operator" : "Team Workshop");
 
   const handleDashboardClick = (e) => {
     e?.preventDefault();
@@ -44,9 +49,9 @@ export default function BusinessReady({ onDashboardClick }) {
             <Store className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Acme Cleaning Services</h3>
+            <h3 className="text-sm font-bold text-gray-900">{businessName}</h3>
             <p className="text-[11px] text-gray-500 font-medium mt-0.5">
-              Premium Plan • 5 Team Members
+              Free Trial Active • {staffCountText}
             </p>
           </div>
         </div>
@@ -128,9 +133,9 @@ export default function BusinessReady({ onDashboardClick }) {
             <Store className="w-7 h-7" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Acme Cleaning Services</h3>
+            <h3 className="text-sm font-bold text-gray-900">{businessName}</h3>
             <p className="text-xs text-gray-500 font-medium mt-0.5">
-              Premium Plan • 5 Team Members
+              Free Trial Active • {staffCountText}
             </p>
           </div>
         </div>
@@ -213,9 +218,9 @@ export default function BusinessReady({ onDashboardClick }) {
             <Store className="w-7 h-7" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Acme Cleaning Services</h3>
+            <h3 className="text-sm font-bold text-gray-900">{businessName}</h3>
             <p className="text-xs text-gray-500 font-medium mt-0.5">
-              Premium Plan • 5 Team Members
+              Free Trial Active • {staffCountText}
             </p>
           </div>
         </div>

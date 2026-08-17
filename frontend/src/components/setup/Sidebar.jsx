@@ -9,11 +9,16 @@ export default function Sidebar({
   onBack,
   onStepClick,
 }) {
+  const handleStepClick = (step) => {
+    // Only allow backward navigation to previously reached/completed steps
+    if (step <= currentStep && onStepClick) {
+      onStepClick(step);
+    }
+  };
+
   return (
     <>
-      {/* =========================================================================
-          1. MOBILE HEADER (< 768px / md)
-         ========================================================================= */}
+      {/* Mobile Header */}
       <div className="md:hidden w-full">
         <div className="flex items-center justify-between mb-5">
           <button
@@ -30,9 +35,14 @@ export default function Sidebar({
               <button
                 key={step}
                 type="button"
-                onClick={() => onStepClick && onStepClick(step)}
-                className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                  step === currentStep ? 'w-7 bg-black' : 'w-7 bg-gray-200'
+                onClick={() => handleStepClick(step)}
+                disabled={step > currentStep}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  step === currentStep
+                    ? 'w-7 bg-black cursor-pointer'
+                    : step < currentStep
+                    ? 'w-7 bg-gray-400 cursor-pointer'
+                    : 'w-7 bg-gray-200 cursor-not-allowed'
                 }`}
               />
             ))}
@@ -55,9 +65,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* =========================================================================
-          2. TABLET / IPAD HEADER (768px to 1023px / md to lg)
-         ========================================================================= */}
+      {/* Tablet Header */}
       <div className="hidden md:block lg:hidden w-full">
         <div className="flex items-center justify-between mb-4">
           <button
@@ -79,11 +87,12 @@ export default function Sidebar({
             <button
               key={step}
               type="button"
-              onClick={() => onStepClick && onStepClick(step)}
-              className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+              onClick={() => handleStepClick(step)}
+              disabled={step > currentStep}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
                 step <= currentStep
-                  ? 'w-14 bg-[#111827]'
-                  : 'w-14 bg-gray-200 hover:bg-gray-300'
+                  ? 'w-14 bg-[#111827] cursor-pointer'
+                  : 'w-14 bg-gray-200 cursor-not-allowed'
               }`}
             />
           ))}
@@ -101,9 +110,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* =========================================================================
-          3. DESKTOP HEADER (≥ 1024px / lg)
-         ========================================================================= */}
+      {/* Desktop Header */}
       <div className="hidden lg:block w-full">
         <div className="flex items-center gap-6 mb-3">
           <button
@@ -124,11 +131,12 @@ export default function Sidebar({
             <button
               key={step}
               type="button"
-              onClick={() => onStepClick && onStepClick(step)}
-              className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+              onClick={() => handleStepClick(step)}
+              disabled={step > currentStep}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
                 step <= currentStep
-                  ? 'w-10 bg-[#111827]'
-                  : 'w-10 bg-gray-200 hover:bg-gray-300'
+                  ? 'w-10 bg-[#111827] cursor-pointer'
+                  : 'w-10 bg-gray-200 cursor-not-allowed'
               }`}
             />
           ))}

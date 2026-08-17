@@ -8,8 +8,10 @@ import {
   Check,
   Loader2,
   Droplet,
+  AlertCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 export default function Register({
   onSignUp,
@@ -19,22 +21,51 @@ export default function Register({
   onNeedHelpClick,
 }) {
   const navigate = useNavigate();
+  const { register } = useAuth();
+  
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const validatePassword = (pass) => {
+    if (!pass || pass.length < 8) return 'Password must be at least 8 characters long.';
+    if (!/[A-Z]/.test(pass)) return 'Password must contain at least one uppercase letter (A-Z).';
+    if (!/[a-z]/.test(pass)) return 'Password must contain at least one lowercase letter (a-z).';
+    if (!/[0-9]/.test(pass)) return 'Password must contain at least one number (0-9).';
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pass)) return 'Password must contain at least one special character (!@#$%^&*).';
+    return null;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (onSignUp) {
-      setIsLoading(true);
-      try {
+    setErrorMessage("");
+    setIsLoading(true);
+
+    const passError = validatePassword(password);
+    if (passError) {
+      setErrorMessage(passError);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      if (onSignUp) {
         await onSignUp({ fullName, email, password, agreeToTerms });
-      } finally {
-        setIsLoading(false);
+      } else {
+        const res = await register({ fullName, email, password });
+        if (res.success) {
+          navigate('/verify-email', { state: { email: res.data?.email || email } });
+        }
       }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to create account. Please try again.";
+      setErrorMessage(msg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -92,6 +123,14 @@ export default function Register({
               Get started with your 14-day free trial today
             </p>
           </div>
+
+          {/* Error Alert Banner */}
+          {errorMessage && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-xs font-semibold text-red-700">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
 
           {/* Registration Form */}
           <form onSubmit={handleSubmit} className="space-y-4">

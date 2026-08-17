@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -10,11 +10,17 @@ import {
   Wrench,
   Layers,
   Image as ImageIcon,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import Sidebar from "../../components/setup/Sidebar";
+import { useAuth } from "../../context/AuthContext.jsx";
+import * as businessService from "../../services/businessService.js";
 
 export default function SetupBusiness({ onContinue, onBack }) {
   const navigate = useNavigate();
+  const { user, business, setBusiness } = useAuth();
+
   // Wizard Step State
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
@@ -25,30 +31,70 @@ export default function SetupBusiness({ onContinue, onBack }) {
     "Set your business hours and preferences to get your workshop ready.";
 
   // Form Field States
-  const [businessName, setBusinessName] = useState("Sparkle Auto Spa");
-  const [ownerName, setOwnerName] = useState("John Doe");
-  const [email, setEmail] = useState("contact@business.com");
-  const [mobileNumber, setMobileNumber] = useState("+1 (555) 000-0000");
-  const [whatsappNumber, setWhatsappNumber] = useState("+1 (555) 000-0000");
-  const [businessType, setBusinessType] = useState("car-wash"); // 'car-wash' | 'detailing' | 'service-center' | 'multi-service'
+  const [businessName, setBusinessName] = useState(business?.name || "");
+  const [ownerName, setOwnerName] = useState(business?.ownerName || user?.fullName || "");
+  const [email, setEmail] = useState(business?.email || user?.email || "");
+  const [mobileNumber, setMobileNumber] = useState(business?.mobileNumber || "");
+  const [whatsappNumber, setWhatsappNumber] = useState(business?.whatsappNumber || "");
+  const [businessType, setBusinessType] = useState(business?.businessType || "car-wash");
 
-  // Logo Upload State
-  const [logoPreview, setLogoPreview] = useState(null);
+  // Logo Upload & Error State
+  const [logoPreview, setLogoPreview] = useState(business?.logo || null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (business) {
+      if (business.name) setBusinessName(business.name);
+      if (business.ownerName) setOwnerName(business.ownerName);
+      if (business.email) setEmail(business.email);
+      if (business.mobileNumber) setMobileNumber(business.mobileNumber);
+      if (business.whatsappNumber) setWhatsappNumber(business.whatsappNumber);
+      if (business.businessType) setBusinessType(business.businessType);
+      if (business.logo) setLogoPreview(business.logo);
+    } else if (user) {
+      if (user.fullName) setOwnerName(user.fullName);
+      if (user.email) setEmail(user.email);
+    }
+  }, [user, business]);
 
   const handleLogoUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        setErrorMessage("Logo file size must be less than 2MB.");
+        return;
+      }
+      setErrorMessage("");
       const reader = new FileReader();
       reader.onloadend = () => setLogoPreview(reader.result);
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate('/welcome');
+    }
+  };
+
+  const handleStepClick = (step) => {
+    if (step === 1) navigate('/setup/business');
+    else if (step === 2) navigate('/setup/detail');
+    else if (step === 3) navigate('/setup/service');
+    else if (step === 4) navigate('/setup/review');
+  };
+
+  const handleSubmit = async (e) => {
     e?.preventDefault();
-    if (onContinue) {
-      onContinue({
+    setErrorMessage("");
+    setIsLoading(true);
+
+    try {
+      const payload = {
         businessName,
         ownerName,
         email,
@@ -56,9 +102,25 @@ export default function SetupBusiness({ onContinue, onBack }) {
         whatsappNumber,
         businessType,
         logoPreview,
-      });
-    } else {
-      navigate("/setup/detail");
+      };
+
+      const res = await businessService.saveStep1BusinessInfo(payload);
+      if (res && res.success && res.data) {
+        setBusiness(res.data);
+        if (onContinue) {
+          onContinue(payload);
+        } else {
+          navigate("/setup/detail");
+        }
+      } else {
+        const msg = res?.message || "Failed to save business details to database.";
+        setErrorMessage(msg);
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to save business details. Please check your backend connection.";
+      setErrorMessage(msg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -83,8 +145,8 @@ export default function SetupBusiness({ onContinue, onBack }) {
           totalSteps={totalSteps}
           title={headerTitle}
           description="Let's configure your workshop in just a few simple steps."
-          onBack={onBack}
-          onStepClick={(step) => setCurrentStep(step)}
+          onBack={handleBack}
+          onStepClick={handleStepClick}
         />
 
         {/* Card 1: Business Details */}
@@ -277,8 +339,8 @@ export default function SetupBusiness({ onContinue, onBack }) {
           totalSteps={totalSteps}
           title={headerTitle}
           description={headerDescription}
-          onBack={onBack}
-          onStepClick={(step) => setCurrentStep(step)}
+          onBack={handleBack}
+          onStepClick={handleStepClick}
         />
 
         {/* Form Stack */}
@@ -445,8 +507,8 @@ export default function SetupBusiness({ onContinue, onBack }) {
             totalSteps={totalSteps}
             title={headerTitle}
             description={headerDescription}
-            onBack={onBack}
-            onStepClick={(step) => setCurrentStep(step)}
+            onBack={handleBack}
+            onStepClick={handleStepClick}
           />
 
           <form

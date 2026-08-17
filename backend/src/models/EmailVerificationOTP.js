@@ -1,0 +1,43 @@
+import mongoose from 'mongoose';
+
+const emailVerificationOTPSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      lowercase: true,
+      trim: true,
+      index: true,
+    },
+    otpHash: {
+      type: String,
+      required: true,
+    },
+    attempts: {
+      type: Number,
+      default: 0,
+    },
+    lastResendAt: {
+      type: Date,
+      default: Date.now,
+    },
+    expiresAt: {
+      type: Date,
+      required: true,
+      expires: 0, // Mongoose TTL Index: automatically purges document from MongoDB when current date >= expiresAt
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const EmailVerificationOTP = mongoose.model('EmailVerificationOTP', emailVerificationOTPSchema);
+
+export default EmailVerificationOTP;

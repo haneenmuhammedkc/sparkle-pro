@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import * as authService from '../services/authService.js';
-import * as businessService from '../services/businessService.js';
+import * as authService from '../features/auth/services/authService.js';
+import * as businessService from '../features/owner/setup/services/businessService.js';
 
 const AuthContext = createContext();
 

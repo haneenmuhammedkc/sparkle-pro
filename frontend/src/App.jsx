@@ -1,34 +1,34 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
-import ForgotPassword from './pages/auth/ForgotPassword';
-import VerifyEmail from './pages/auth/VerifyEmail';
-import VerifyPasswordResetOTP from './pages/auth/VerifyPasswordResetOTP';
-import ResetPassword from './pages/auth/ResetPassword';
+import Login from './features/auth/pages/Login';
+import Register from './features/auth/pages/Register';
+import ForgotPassword from './features/auth/pages/ForgotPassword';
+import VerifyEmail from './features/auth/pages/VerifyEmail';
+import VerifyPasswordResetOTP from './features/auth/pages/VerifyPasswordResetOTP';
+import ResetPassword from './features/auth/pages/ResetPassword';
 
-import WelcomePage from './pages/WelcomePage';
-import BusinessReady from './pages/BusinessReady';
+import WelcomePage from './features/owner/setup/pages/WelcomePage';
+import BusinessReady from './features/owner/setup/pages/BusinessReady';
 
-import AdminDashboard from './pages/admin-panel/AdminDashboard';
-import Jobs from './pages/admin-panel/Jobs';
-import Customers from './pages/admin-panel/Customers';
-import CustomerDetails from './pages/admin-panel/CustomerDetails';
-import Staff from './pages/admin-panel/Staff';
-import Settings from './pages/admin-panel/settings/Settings';
-import NewJob from './pages/admin-panel/NewJob';
-import NotificationsPage from './pages/admin-panel/NotificationsPage';
+import Dashboard from './features/owner/dashboard/pages/Dashboard';
+import Jobs from './features/owner/jobs/pages/Jobs';
+import Customers from './features/owner/customers/pages/Customers';
+import CustomerDetails from './features/owner/customers/pages/CustomerDetails';
+import Staff from './features/owner/staff/pages/Staff';
+import Settings from './features/owner/settings/pages/Settings';
+import NewJob from './features/owner/jobs/pages/NewJob';
+import Notifications from './features/owner/notifications/pages/Notifications';
 
-import SetupBusiness from './pages/setup/SetupBusiness';
-import OperationalDetails from './pages/setup/OperationalDetails';
-import ServicesPricing from './pages/setup/ServicePricing';
-import Review from './pages/setup/Review';
+import SetupBusiness from './features/owner/setup/pages/SetupBusiness';
+import OperationalDetails from './features/owner/setup/pages/OperationalDetails';
+import ServicesPricing from './features/owner/setup/pages/ServicePricing';
+import Review from './features/owner/setup/pages/Review';
 
-import TrackVehicle from './pages/user/TrackVehicle';
-import VehicleDetails from './pages/user/VehicleDetails';
+import TrackVehicle from './features/user/tracking/pages/TrackVehicle';
+import VehicleDetails from './features/user/tracking/pages/VehicleDetails';
 
 import { AuthProvider } from './context/AuthContext.jsx';
-import ProtectedRoute from './components/ProtectedRoute.jsx';
+import ProtectedRoute from './routes/ProtectedRoute.jsx';
 
 const App = () => {
   return (
@@ -106,7 +106,7 @@ const App = () => {
             path="/dashboard"
             element={
               <ProtectedRoute requireSetupCompleted={true}>
-                <AdminDashboard />
+                <Dashboard />
               </ProtectedRoute>
             }
           />
@@ -178,7 +178,7 @@ const App = () => {
             path="/notifications"
             element={
               <ProtectedRoute requireSetupCompleted={true}>
-                <NotificationsPage />
+                <Notifications />
               </ProtectedRoute>
             }
           />

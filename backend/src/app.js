@@ -7,8 +7,14 @@ import { successResponse } from "./utils/apiResponse.js";
 import notFoundMiddleware from "./middleware/notFoundMiddleware.js";
 import errorMiddleware from "./middleware/errorMiddleware.js";
 
-import authRoutes from "./routes/authRoutes.js";
-import businessRoutes from "./routes/businessRoutes.js";
+import authRoutes from './modules/auth/auth.routes.js';
+import businessRoutes from './modules/onboarding/onboarding.routes.js';
+import jobRoutes from './modules/jobs/jobs.routes.js';
+import publicTrackRoutes from './modules/jobs/public-track.routes.js';
+import customerRoutes from './modules/customers/customers.routes.js';
+import staffRoutes from './modules/staff/staff.routes.js';
+import analyticsRoutes from './modules/analytics/analytics.routes.js';
+import settingsRoutes from './modules/settings/settings.routes.js';
 
 const app = express();
 
@@ -21,8 +27,8 @@ app.use(cookieParser());
 // Environment-Aware CORS Configuration
 const allowedOrigins = [
   process.env.FRONTEND_URL,
-  process.env.NODE_ENV !== "production" ? "http://localhost:5173" : null,
-  process.env.NODE_ENV !== "production" ? "http://localhost:5174" : null,
+  "http://localhost:5173",
+  "http://localhost:5174",
 ].filter(Boolean);
 
 app.use(
@@ -65,6 +71,24 @@ app.use("/api/auth", authRoutes);
 
 // Owner Business & Setup Routes
 app.use("/api/owner", businessRoutes);
+
+// Owner Jobs & Booking Routes
+app.use("/api/owner/jobs", jobRoutes);
+
+// Owner Customer Management Routes
+app.use("/api/owner/customers", customerRoutes);
+
+// Owner Staff Management Routes
+app.use("/api/owner/staff", staffRoutes);
+
+// Owner Analytics Routes
+app.use("/api/owner/analytics", analyticsRoutes);
+
+// Owner Settings Routes
+app.use("/api/owner", settingsRoutes);
+
+// Public Vehicle Tracking Routes
+app.use("/api/public", publicTrackRoutes);
 
 // 404 Handler
 app.use(notFoundMiddleware);

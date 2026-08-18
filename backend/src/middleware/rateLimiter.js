@@ -61,3 +61,13 @@ export const refreshTokenLimiter = rateLimit({
   legacyHeaders: false,
   handler: rateLimitHandler('Too many token refresh requests. Please log in again.'),
 });
+
+// 7. Public Vehicle Tracking Limiter (30 requests / 15 minutes / IP)
+export const publicTrackingLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('Too many vehicle tracking lookups from this IP. Please try again after 15 minutes.'),
+});
+

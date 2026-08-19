@@ -40,7 +40,7 @@ const AdminSidebar = ({ activeItem }) => {
             <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
               <Car className="w-5 h-5 stroke-[2.5]" />
             </div>
-            <span className="font-bold text-xl tracking-tight text-gray-900">AutoFlow Ops</span>
+            <span className="font-bold text-xl tracking-tight text-gray-900">SparklePro</span>
           </div>
 
           {/* Navigation Links */}
@@ -69,19 +69,6 @@ const AdminSidebar = ({ activeItem }) => {
               );
             })}
           </nav>
-        </div>
-
-        {/* User Profile Footer */}
-        <div className="pt-6 border-t border-gray-100 flex items-center gap-3 px-2">
-          <img
-            src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150"
-            alt="Marcus V."
-            className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-xs"
-          />
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-bold text-gray-900 truncate">Marcus V.</span>
-            <span className="text-xs text-gray-500 font-medium truncate">Operations Manager</span>
-          </div>
         </div>
       </aside>
 

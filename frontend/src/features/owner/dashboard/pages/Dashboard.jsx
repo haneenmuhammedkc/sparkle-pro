@@ -113,7 +113,6 @@ const AdminDashboard = () => {
         vehicleCategory: 'Car',
         wheelCategory: '4-wheeler',
         selectedServices: [service || 'Foam Wash & Wax Package'],
-        priorityLevel: 'High',
       });
 
       if (res.success) {
@@ -143,7 +142,7 @@ const AdminDashboard = () => {
     { id: 'ready', name: 'Ready to Go', count: statsData?.workflowCounts?.ready ?? 0, icon: Key },
   ];
 
-  // Derive Priority Active Job for display
+  // Derive Active Job for display
   const priorityJob = statsData?.priorityJob
     ? {
         id: statsData.priorityJob.jobId || statsData.priorityJob.vehiclePlate,
@@ -157,11 +156,11 @@ const AdminDashboard = () => {
         techAvatar: statsData.priorityJob.assignedStaff?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150',
       }
     : {
-        id: 'No Active Priority Job',
+        id: 'No Active Workshop Job',
         status: 'All Systems Normal',
         customerName: 'None pending',
         customerPhone: '',
-        servicePlan: 'No express queue items',
+        servicePlan: 'No active jobs in progress',
         technician: 'Available',
         eta: '0 mins',
         mobileEta: '0m',
@@ -391,11 +390,11 @@ const AdminDashboard = () => {
             transition={{ duration: 0.3, delay: 0.1 }}
             className="lg:col-span-7 bg-white border border-gray-200/90 rounded-3xl p-5 sm:p-7 shadow-2xs relative overflow-hidden"
           >
-            {/* Header / Badge */}
+            {/* HEADER / BADGE */}
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-gray-400 tracking-wider uppercase">
-                <span className="hidden sm:inline">PRIORITY ACTIVE JOB</span>
-                <span className="sm:hidden">Priority Job</span>
+                <span className="hidden sm:inline">ACTIVE WORKSHOP JOB</span>
+                <span className="sm:hidden">Active Job</span>
               </span>
 
               <div className="flex items-center gap-2">

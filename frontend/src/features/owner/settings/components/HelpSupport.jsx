@@ -29,7 +29,7 @@ const HelpSupport = () => {
       <div>
         <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">Help & Customer Support</h2>
         <p className="text-xs sm:text-sm text-gray-500 font-medium mt-0.5">
-          Find answers to common platform questions or submit a ticket to AutoFlow Ops support.
+          Find answers to common platform questions or submit a ticket to SparklePro support.
         </p>
       </div>
 

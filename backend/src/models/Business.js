@@ -72,32 +72,11 @@ const businessSchema = new mongoose.Schema(
     },
     servicesConfigured: {
       type: Array,
-      default: [
-        { name: 'Exterior Wash', category: 'Car', duration: '45 mins', startingPrice: '₹299', enabled: true },
-        { name: 'Deep Detailing', category: 'Car', duration: '120 mins', startingPrice: '₹1,499', enabled: true },
-      ],
+      default: [],
     },
     categoryPricing: {
       type: Object,
-      default: {
-        Bike: [
-          { name: 'Basic Wash', price: '₹199' },
-          { name: 'Quick Foam Polish', price: '₹299' },
-        ],
-        Car: [
-          { name: 'Basic Wash', price: '₹499' },
-          { name: 'Interior Sanitization', price: '₹599' },
-          { name: 'Exterior Wash', price: '₹299' },
-        ],
-        SUV: [
-          { name: 'Heavy SUV Wash', price: '₹699' },
-          { name: 'Complete Detailing Package', price: '₹1,299' },
-        ],
-        Van: [
-          { name: 'Commercial Van Wash', price: '₹899' },
-          { name: 'Deep Interior Cleaning', price: '₹1,199' },
-        ],
-      },
+      default: {},
     },
     taxId: {
       type: String,

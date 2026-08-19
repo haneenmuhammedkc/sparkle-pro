@@ -5,63 +5,7 @@ import SetupSidebar from '../components/SetupSidebar';
 import { useAuth } from '../../../../context/AuthContext';
 import * as businessService from '../services/businessService.js';
 
-const DEFAULT_SERVICES = [
-  {
-    id: "ext-wash",
-    name: "Exterior Wash",
-    category: "Car",
-    duration: "45 mins",
-    time: "45 mins",
-    startingPrice: "₹299",
-    price: "₹299",
-    enabled: true,
-    isCustom: false,
-  },
-  {
-    id: "deep-detail",
-    name: "Deep Detailing",
-    category: "Car",
-    duration: "120 mins",
-    time: "120 mins",
-    startingPrice: "₹1,499",
-    price: "₹1,499",
-    enabled: true,
-    isCustom: false,
-  },
-  {
-    id: "bike-wash",
-    name: "Basic Bike Wash",
-    category: "Bike",
-    duration: "30 mins",
-    time: "30 mins",
-    startingPrice: "₹199",
-    price: "₹199",
-    enabled: true,
-    isCustom: false,
-  },
-  {
-    id: "suv-wash",
-    name: "Heavy SUV Wash",
-    category: "SUV",
-    duration: "60 mins",
-    time: "60 mins",
-    startingPrice: "₹499",
-    price: "₹499",
-    enabled: true,
-    isCustom: false,
-  },
-  {
-    id: "van-wash",
-    name: "Commercial Van Wash",
-    category: "Van",
-    duration: "90 mins",
-    time: "90 mins",
-    startingPrice: "₹799",
-    price: "₹799",
-    enabled: true,
-    isCustom: false,
-  },
-];
+const DEFAULT_SERVICES = [];
 
 export default function ServicesPricing({ onContinue, onBack }) {
   const navigate = useNavigate();
@@ -79,10 +23,10 @@ export default function ServicesPricing({ onContinue, onBack }) {
   const [errorMessage, setErrorMessage] = useState("");
 
   const [services, setServices] = useState(() => {
-    if (business?.servicesConfigured && Array.isArray(business.servicesConfigured) && business.servicesConfigured.length > 0) {
+    if (business?.servicesConfigured && Array.isArray(business.servicesConfigured)) {
       return business.servicesConfigured;
     }
-    return DEFAULT_SERVICES;
+    return [];
   });
 
   useEffect(() => {
@@ -117,9 +61,9 @@ export default function ServicesPricing({ onContinue, onBack }) {
     }
     const initial = { Bike: [], Car: [], SUV: [], Van: [] };
     const initialServices =
-      business?.servicesConfigured && Array.isArray(business.servicesConfigured) && business.servicesConfigured.length > 0
+      business?.servicesConfigured && Array.isArray(business.servicesConfigured)
         ? business.servicesConfigured
-        : DEFAULT_SERVICES;
+        : [];
 
     categories.forEach((cat) => {
       initial[cat] = initialServices

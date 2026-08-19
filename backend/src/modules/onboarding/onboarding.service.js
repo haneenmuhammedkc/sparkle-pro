@@ -127,23 +127,7 @@ export const saveStep3Services = async (ownerId, data) => {
   if (servicesConfigured) {
     business.servicesConfigured = servicesConfigured;
   } else {
-    // Update default service states if passed
-    business.servicesConfigured = [
-      {
-        name: 'Exterior Wash',
-        category: 'Car',
-        duration: '45 mins',
-        startingPrice: '₹299',
-        enabled: exteriorWashEnabled !== undefined ? exteriorWashEnabled : true,
-      },
-      {
-        name: 'Deep Detailing',
-        category: 'Car',
-        duration: '120 mins',
-        startingPrice: '₹1,499',
-        enabled: deepDetailingEnabled !== undefined ? deepDetailingEnabled : true,
-      },
-    ];
+    business.servicesConfigured = [];
   }
 
   if (categoryPricing) {

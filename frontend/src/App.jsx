@@ -41,6 +41,10 @@ const App = () => {
           <Route path="/track" element={<TrackVehicle />} />
           <Route path="/track/details" element={<VehicleDetails />} />
           <Route path="/track/:id" element={<VehicleDetails />} />
+          <Route path="/tracking" element={<TrackVehicle />} />
+          <Route path="/tracking/details" element={<VehicleDetails />} />
+          <Route path="/tracking/:token" element={<VehicleDetails />} />
+          <Route path="/track/:token" element={<VehicleDetails />} />
 
           {/* Auth Public Pages */}
           <Route path="/" element={<Login />} />

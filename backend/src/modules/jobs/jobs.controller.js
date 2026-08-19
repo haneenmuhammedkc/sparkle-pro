@@ -84,3 +84,14 @@ export const reassignJobStaff = async (req, res, next) => {
     next(error);
   }
 };
+
+export const recordPayment = async (req, res, next) => {
+  try {
+    const businessId = req.user.businessId;
+    const jobId = req.params.id;
+    const updatedJob = await jobService.recordPaymentForOwner(jobId, businessId, req.body);
+    return successResponse(res, 200, 'Payment recorded successfully', updatedJob);
+  } catch (error) {
+    next(error);
+  }
+};

@@ -178,6 +178,36 @@ const jobSchema = new mongoose.Schema(
       default: 'Indian Rupee (₹)',
       trim: true,
     },
+    paymentStatus: {
+      type: String,
+      enum: ['UNPAID', 'PARTIAL', 'PAID'],
+      default: 'UNPAID',
+      index: true,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ['CASH', 'UPI', 'CARD', 'POS', 'OTHER', null],
+      default: null,
+    },
+    paidAmount: {
+      type: Number,
+      min: [0, 'Paid amount cannot be negative'],
+      default: 0,
+    },
+    balanceAmount: {
+      type: Number,
+      min: [0, 'Balance amount cannot be negative'],
+      default: 0,
+    },
+    transactionRef: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    paidAt: {
+      type: Date,
+      default: null,
+    },
     status: {
       type: String,
       enum: ['Pending', 'In Progress', 'Ready', 'Completed', 'Cancelled'],
@@ -193,11 +223,6 @@ const jobSchema = new mongoose.Schema(
       min: 0,
       max: 4,
       default: 0,
-    },
-    priorityLevel: {
-      type: String,
-      enum: ['Normal', 'Express', 'High'],
-      default: 'Normal',
     },
     assignedStaff: {
       type: staffSnapshotSchema,

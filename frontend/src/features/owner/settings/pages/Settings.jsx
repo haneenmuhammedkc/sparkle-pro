@@ -29,7 +29,6 @@ import ServicesManagement from '../components/ServicesManagement';
 import StaffPermissions from '../components/StaffPermissions';
 import BillingPayments from '../components/BillingPayments';
 import Analytics from '../../analytics/pages/Analytics';
-import Security from '../components/Security';
 import NotificationsSettings from '../components/NotificationsSettings';
 import BackupData from '../components/BackupData';
 import HelpSupport from '../components/HelpSupport';
@@ -42,7 +41,6 @@ const MENU_ITEMS = [
   { id: 'staff', title: 'Staff Management', desc: 'Manage roles and permissions', icon: Users, group: 'Team & Billing' },
   { id: 'billing', title: 'Billing & Payments', desc: 'Invoices and payment methods', icon: CreditCard, group: 'Team & Billing' },
   { id: 'reports', title: 'Reports & Analytics', desc: 'View business performance', icon: TrendingUp, group: 'Analytics & Security' },
-  { id: 'security', title: 'Security', desc: 'Passwords and 2FA', icon: Shield, group: 'Analytics & Security' },
   { id: 'notifications', title: 'Notifications', desc: 'Alerts and email preferences', icon: Bell, group: 'Analytics & Security' },
   { id: 'backup', title: 'Backup & Data', desc: 'Export data and sync settings', icon: HardDrive, group: 'System & Support' },
   { id: 'support', title: 'Help & Support', desc: 'FAQs and customer service', icon: HelpCircle, group: 'System & Support' },
@@ -102,8 +100,6 @@ const Settings = () => {
         return <BillingPayments />;
       case 'reports':
         return <Analytics />;
-      case 'security':
-        return <Security />;
       case 'notifications':
         return <NotificationsSettings />;
       case 'backup':
@@ -380,7 +376,7 @@ const Settings = () => {
               <div>
                 <h3 className="text-xl font-extrabold text-gray-900">Confirm Logout</h3>
                 <p className="text-xs text-gray-500 font-medium mt-1">
-                  Are you sure you want to log out of AutoFlow Ops?
+                  Are you sure you want to log out of SparklePro?
                 </p>
               </div>
 

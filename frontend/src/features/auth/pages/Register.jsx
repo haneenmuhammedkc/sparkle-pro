@@ -52,6 +52,12 @@ export default function Register({
       return;
     }
 
+    if (!agreeToTerms) {
+      setErrorMessage("Please agree to the Terms & Conditions to continue.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       if (onSignUp) {
         await onSignUp({ fullName, email, password, agreeToTerms });
@@ -213,7 +219,6 @@ export default function Register({
                 <div className="relative flex items-center justify-center mt-0.5">
                   <input
                     type="checkbox"
-                    required
                     checked={agreeToTerms}
                     onChange={(e) => setAgreeToTerms(e.target.checked)}
                     className="peer sr-only"

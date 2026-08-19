@@ -66,7 +66,7 @@ export const getSettings = async (userId, businessId) => {
  * Update Business Profile details
  */
 export const updateProfile = async (userId, businessId, data) => {
-  const { companyName, ownerName, taxId, email, phone, address, logo } = data;
+  const { companyName, ownerName, taxId, email, phone, whatsappNumber, address, logo } = data;
 
   if (!companyName || typeof companyName !== 'string' || companyName.trim().length < 2 || companyName.trim().length > 100) {
     const error = new Error('Company name is required and must be between 2 and 100 characters');
@@ -99,6 +99,7 @@ export const updateProfile = async (userId, businessId, data) => {
   if (taxId !== undefined) business.taxId = taxId.trim();
   business.email = email.toLowerCase().trim();
   if (phone !== undefined) business.mobileNumber = phone.trim();
+  if (whatsappNumber !== undefined) business.whatsappNumber = whatsappNumber.trim();
   if (address !== undefined) business.address = address.trim();
   if (logo !== undefined) business.logo = logo;
 
@@ -135,6 +136,21 @@ export const updateWorkshop = async (userId, businessId, data) => {
       error.statusCode = 400;
       throw error;
     }
+
+    // Active job safety check when deleting bays
+    const existingBays = business.bays || [];
+    if (bays.length < existingBays.length) {
+      const activeJobsCount = await Job.countDocuments({
+        businessId: business._id,
+        status: { $in: ['Pending', 'In Progress', 'Ready'] },
+      });
+      if (activeJobsCount > 0) {
+        const error = new Error('Cannot delete bay with active assigned jobs.');
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
     business.bays = bays.map((b, index) => ({
       bayId: b.bayId || index + 1,
       name: b.name ? String(b.name).trim() : `Bay ${index + 1}`,
@@ -178,6 +194,62 @@ export const updateWorkshop = async (userId, businessId, data) => {
   return getSettings(userId, business._id);
 };
 
+export const normalizeVehicleSpecificServices = (servicesConfigured = []) => {
+  const result = [];
+  servicesConfigured.forEach((s, idx) => {
+    // Migrate legacy multi-vehicle pricing objects to vehicle-specific records
+    if (s.pricing && typeof s.pricing === 'object' && Object.keys(s.pricing).length > 0) {
+      Object.entries(s.pricing).forEach(([catKey, details]) => {
+        const catMap = {
+          Bike: '2-wheeler',
+          Car: '4-wheeler',
+          SUV: 'suv',
+          Truck: 'custom',
+          Van: 'custom',
+        };
+        const vCat = catMap[catKey] || catKey.toLowerCase();
+        result.push({
+          id: `${s.id || s._id || 'srv-' + idx}-${vCat}`,
+          name: `${s.name} (${catKey})`,
+          description: s.description || '',
+          vehicleCategory: vCat,
+          price: Number(details.price || 0),
+          duration: details.duration || s.duration || '30 mins',
+          enabled: s.enabled !== undefined ? Boolean(s.enabled) : true,
+        });
+      });
+    } else {
+      const catMap = {
+        '2-wheeler': '2-wheeler',
+        '4-wheeler': '4-wheeler',
+        'suv': 'suv',
+        'custom': 'custom',
+        Bike: '2-wheeler',
+        Car: '4-wheeler',
+        SUV: 'suv',
+        Van: 'custom',
+        Truck: 'custom',
+      };
+      const rawCat = s.vehicleCategory || s.category || '4-wheeler';
+      const normCat = catMap[rawCat] || rawCat;
+      const rawPrice = s.price !== undefined
+        ? Number(s.price)
+        : Number(String(s.startingPrice || '0').replace(/[^0-9]/g, '')) || 0;
+
+      result.push({
+        id: String(s.id || s._id || `srv-${idx + 1}`),
+        name: s.name || 'Unnamed Service',
+        description: s.description || '',
+        vehicleCategory: normCat,
+        price: rawPrice,
+        duration: s.duration || s.time || '30 mins',
+        enabled: s.enabled !== undefined ? Boolean(s.enabled) : true,
+      });
+    }
+  });
+  return result;
+};
+
 /**
  * Get Service & Pricing Configurations
  */
@@ -189,8 +261,9 @@ export const getServices = async (userId, businessId) => {
     throw error;
   }
 
+  const normalized = normalizeVehicleSpecificServices(business.servicesConfigured || []);
   return {
-    servicesConfigured: business.servicesConfigured || [],
+    servicesConfigured: normalized,
     categoryPricing: business.categoryPricing || {},
   };
 };
@@ -214,7 +287,8 @@ export const updateServices = async (userId, businessId, data) => {
       error.statusCode = 400;
       throw error;
     }
-    business.servicesConfigured = servicesConfigured;
+    const normalized = normalizeVehicleSpecificServices(servicesConfigured);
+    business.servicesConfigured = normalized;
   }
 
   if (categoryPricing !== undefined) {

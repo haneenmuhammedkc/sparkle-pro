@@ -1,11 +1,16 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 import connectDB from '../src/config/db.js';
 import app from '../src/app.js';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import RefreshToken from './src/models/RefreshToken.js';
-import PasswordResetOTP from './src/models/PasswordResetOTP.js';
-import EmailVerificationOTP from './src/models/EmailVerificationOTP.js';
+import RefreshToken from '../src/modules/auth/refresh-token.model.js';
+import PasswordResetOTP from '../src/modules/auth/password-reset-otp.model.js';
+import EmailVerificationOTP from '../src/modules/auth/otp.model.js';
 import User from '../src/models/User.js';
 
 async function runSecurityRemediationSuite() {

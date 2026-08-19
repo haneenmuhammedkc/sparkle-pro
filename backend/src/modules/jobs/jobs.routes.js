@@ -15,6 +15,7 @@ router.get('/:id', jobController.getJobById);
 router.put('/:id', jobController.updateJob);
 router.patch('/:id/status', jobController.updateJobStatus);
 router.patch('/:id/assign', jobController.reassignJobStaff);
+router.patch('/:id/payment', jobController.recordPayment);
 router.delete('/:id', jobController.deleteJob);
 
 export default router;

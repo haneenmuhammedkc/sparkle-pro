@@ -1,8 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Pencil, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Pencil,
+  X,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Lock,
+  ChevronDown,
+  ChevronUp,
+  KeyRound
+} from 'lucide-react';
 import * as settingsService from '../services/settingsService';
 
 const BusinessProfile = () => {
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -14,12 +28,24 @@ const BusinessProfile = () => {
     taxId: '',
     email: '',
     phone: '',
+    whatsappNumber: '',
     address: '',
     capacity: '30 Vehicles / Day',
     logo: null,
   });
 
   const [formData, setFormData] = useState({ ...profile });
+
+  // Change Password Drawer State
+  const [isPasswordDrawerOpen, setIsPasswordDrawerOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -36,6 +62,7 @@ const BusinessProfile = () => {
             taxId: b.taxId || '',
             email: b.email || u.email || '',
             phone: b.mobileNumber || '',
+            whatsappNumber: b.whatsappNumber || '',
             address: b.address || '',
             capacity: `${b.capacity || 30} Vehicles / Day`,
             logo: b.logo || null,
@@ -71,6 +98,7 @@ const BusinessProfile = () => {
           taxId: b.taxId || formData.taxId,
           email: b.email || formData.email,
           phone: b.mobileNumber || formData.phone,
+          whatsappNumber: b.whatsappNumber || formData.whatsappNumber,
           address: b.address || formData.address,
           capacity: `${b.capacity || 30} Vehicles / Day`,
           logo: b.logo || formData.logo,
@@ -84,6 +112,61 @@ const BusinessProfile = () => {
       setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to update business profile' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const validatePasswordRules = (pass) => {
+    if (!pass || pass.length < 8) return 'Password must be at least 8 characters long.';
+    if (!/[A-Z]/.test(pass)) return 'Password must contain at least one uppercase letter (A-Z).';
+    if (!/[a-z]/.test(pass)) return 'Password must contain at least one lowercase letter (a-z).';
+    if (!/[0-9]/.test(pass)) return 'Password must contain at least one number (0-9).';
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pass)) return 'Password must contain at least one special character (!@#$%^&*).';
+    return null;
+  };
+
+  const handleChangePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPasswordMessage(null);
+
+    if (!currentPassword) {
+      setPasswordMessage({ type: 'error', text: 'Please enter your current password.' });
+      return;
+    }
+
+    const passError = validatePasswordRules(newPassword);
+    if (passError) {
+      setPasswordMessage({ type: 'error', text: passError });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage({ type: 'error', text: 'New password and confirmation password do not match.' });
+      return;
+    }
+
+    try {
+      setPasswordSaving(true);
+      const res = await settingsService.changePassword({
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      });
+
+      if (res.success) {
+        setPasswordMessage({ type: 'success', text: res.message || 'Password updated successfully!' });
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        setPasswordMessage({ type: 'error', text: res.message || 'Failed to update password.' });
+      }
+    } catch (err) {
+      setPasswordMessage({
+        type: 'error',
+        text: err.response?.data?.message || err.message || 'Failed to update password.',
+      });
+    } finally {
+      setPasswordSaving(false);
     }
   };
 
@@ -113,7 +196,7 @@ const BusinessProfile = () => {
             setFormData({ ...profile });
             setMessage(null);
           }}
-          className="inline-flex items-center gap-2 bg-black hover:bg-gray-800 text-white font-bold px-4 py-2.5 rounded-2xl text-xs sm:text-sm transition-all shadow-sm active:scale-95"
+          className="inline-flex items-center gap-2 bg-black hover:bg-gray-800 text-white font-bold px-4 py-2.5 rounded-2xl text-xs sm:text-sm transition-all shadow-sm active:scale-95 cursor-pointer"
         >
           {isEditing ? (
             <>
@@ -180,7 +263,7 @@ const BusinessProfile = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-3 border-b border-gray-100">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-3 border-b border-gray-100">
             <div>
               <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Contact Email</span>
               <span className="text-sm font-bold text-gray-900 mt-1 block">{profile.email || '—'}</span>
@@ -188,6 +271,10 @@ const BusinessProfile = () => {
             <div>
               <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Phone Number</span>
               <span className="text-sm font-bold text-gray-900 mt-1 block">{profile.phone || '—'}</span>
+            </div>
+            <div>
+              <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider">WhatsApp Number</span>
+              <span className="text-sm font-bold text-gray-900 mt-1 block">{profile.whatsappNumber || '—'}</span>
             </div>
           </div>
 
@@ -243,14 +330,26 @@ const BusinessProfile = () => {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Phone Number</label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-black"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Phone Number</label>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-black"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">WhatsApp Number</label>
+              <input
+                type="tel"
+                placeholder="+1 (555) 000-0000"
+                value={formData.whatsappNumber}
+                onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-black"
+              />
+            </div>
           </div>
 
           <div>
@@ -272,14 +371,14 @@ const BusinessProfile = () => {
                 setFormData({ ...profile });
                 setMessage(null);
               }}
-              className="px-5 py-2.5 text-xs sm:text-sm font-bold text-gray-600 hover:text-gray-900"
+              className="px-5 py-2.5 text-xs sm:text-sm font-bold text-gray-600 hover:text-gray-900 cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-2 bg-black hover:bg-gray-800 text-white font-bold px-6 py-2.5 rounded-2xl text-xs sm:text-sm shadow-sm transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-2 bg-black hover:bg-gray-800 text-white font-bold px-6 py-2.5 rounded-2xl text-xs sm:text-sm shadow-sm transition-all disabled:opacity-50 cursor-pointer"
             >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
               {saving ? 'Saving...' : 'Save Profile Changes'}
@@ -287,6 +386,147 @@ const BusinessProfile = () => {
           </div>
         </form>
       )}
+
+      {/* ========================================================================= */}
+      {/* COLLAPSIBLE CHANGE PASSWORD SECTION                                       */}
+      {/* ========================================================================= */}
+      <div className="bg-white border border-gray-200/90 rounded-3xl p-5 sm:p-7 shadow-2xs space-y-4">
+        <button
+          type="button"
+          onClick={() => {
+            setIsPasswordDrawerOpen(!isPasswordDrawerOpen);
+            setPasswordMessage(null);
+          }}
+          className="w-full flex items-center justify-between text-left focus:outline-none cursor-pointer group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-900 group-hover:bg-black group-hover:text-white transition-colors">
+              <KeyRound className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-gray-900">Change Password</h3>
+              <p className="text-xs text-gray-500 font-medium mt-0.5">
+                Update your Security credentials to keep your owner account safe
+              </p>
+            </div>
+          </div>
+
+          <div className="p-2 rounded-xl bg-gray-100 text-gray-600 group-hover:bg-gray-200 transition-colors">
+            {isPasswordDrawerOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </div>
+        </button>
+
+        {isPasswordDrawerOpen && (
+          <div className="pt-4 border-t border-gray-100 space-y-4">
+            {passwordMessage && (
+              <div
+                className={`p-4 rounded-2xl border text-xs sm:text-sm font-semibold flex items-center gap-3 ${
+                  passwordMessage.type === 'success'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    : 'bg-red-50 border-red-200 text-red-800'
+                }`}
+              >
+                {passwordMessage.type === 'success' ? (
+                  <CheckCircle2 className="w-5 h-5 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 shrink-0" />
+                )}
+                <span>{passwordMessage.text}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+              {/* Current Password */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Current Password</label>
+                <div className="relative flex items-center">
+                  <input
+                    type={showCurrentPassword ? 'text' : 'password'}
+                    required
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter current password"
+                    className="w-full pl-4 pr-11 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-black transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-3.5 text-gray-400 hover:text-gray-600 p-1 focus:outline-none cursor-pointer"
+                    aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* New Password */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">New Password</label>
+                <div className="relative flex items-center">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Minimum 8 characters (A-Z, a-z, 0-9, special char)"
+                    className="w-full pl-4 pr-11 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-black transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3.5 text-gray-400 hover:text-gray-600 p-1 focus:outline-none cursor-pointer"
+                    aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Confirm New Password</label>
+                <div className="relative flex items-center">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter new password"
+                    className="w-full pl-4 pr-11 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-black transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3.5 text-gray-400 hover:text-gray-600 p-1 focus:outline-none cursor-pointer"
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => navigate('/forgot-password')}
+                  className="text-xs font-semibold text-gray-600 hover:text-gray-900 hover:underline cursor-pointer"
+                >
+                  Forgot Password?
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={passwordSaving}
+                  className="inline-flex items-center gap-2 bg-black hover:bg-gray-800 text-white font-bold px-6 py-2.5 rounded-2xl text-xs sm:text-sm shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {passwordSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {passwordSaving ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

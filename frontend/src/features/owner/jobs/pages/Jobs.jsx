@@ -12,7 +12,11 @@ import {
   Car,
   AlertCircle,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  MessageSquare,
+  CreditCard,
+  ExternalLink,
+  DollarSign
 } from 'lucide-react';
 import Sidebar from '../../../../components/layout/Sidebar';
 import * as jobService from '../services/jobService';
@@ -36,6 +40,15 @@ const Jobs = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isUpdateStatusOpen, setIsUpdateStatusOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Payment Recording Modal State
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    paidAmount: '',
+    paymentMethod: 'CASH',
+    transactionRef: '',
+  });
+  const [submittingPayment, setSubmittingPayment] = useState(false);
 
   // Fetch Jobs from Backend
   const fetchJobs = async () => {
@@ -180,6 +193,55 @@ const Jobs = () => {
     }
   };
 
+  // WhatsApp Tracking Link Helper
+  const getWhatsAppLink = (job) => {
+    const rawPhone = job?.phone || job?.rawJob?.customerPhone || '';
+    const cleanPhone = rawPhone.replace(/[^0-9]/g, '');
+    const trackingToken = job?.rawJob?.trackingToken || '';
+    const trackingUrl = `${window.location.origin}/tracking/${trackingToken}`;
+    const businessName = job?.rawJob?.business?.name || 'SparklePro Workshop';
+
+    const message = `Hello ${job.customerName || 'Customer'},\n\nYour vehicle ${job.vehiclePlate} (${job.vehicleModel || 'Vehicle'}) has been checked in at ${businessName}.\n\nJob ID: ${job.jobId || job.vehiclePlate}\nTracking URL: ${trackingUrl}\n\nThank you!`;
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+  };
+
+  // Open Payment Modal
+  const handleOpenPaymentModal = (job) => {
+    setSelectedJobForModal(job);
+    const currentPaid = job.rawJob?.paidAmount !== undefined ? job.rawJob.paidAmount : (job.rawJob?.grandTotal || 0);
+    setPaymentForm({
+      paidAmount: String(currentPaid),
+      paymentMethod: job.rawJob?.paymentMethod || 'CASH',
+      transactionRef: job.rawJob?.transactionRef || '',
+    });
+    setIsPaymentOpen(true);
+  };
+
+  // Save Recorded Payment
+  const handleSavePayment = async (e) => {
+    e.preventDefault();
+    if (!selectedJobForModal) return;
+    const jobIdOrDbId = selectedJobForModal._id || selectedJobForModal.id;
+    setSubmittingPayment(true);
+
+    try {
+      const res = await jobService.recordJobPayment(jobIdOrDbId, {
+        paidAmount: Number(paymentForm.paidAmount),
+        paymentMethod: paymentForm.paymentMethod,
+        transactionRef: paymentForm.transactionRef,
+      });
+
+      if (res.success) {
+        setIsPaymentOpen(false);
+        await fetchJobs();
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to record payment');
+    } finally {
+      setSubmittingPayment(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#fafafa] font-sans text-gray-900 flex flex-col lg:flex-row antialiased selection:bg-blue-100 selection:text-blue-700">
       
@@ -319,11 +381,35 @@ const Jobs = () => {
                     <span className={`text-[11px] font-bold px-3 py-1 rounded-full border ${job.statusColor}`}>
                       {job.status}
                     </span>
+                    {/* Payment Status Pill */}
+                    <span
+                      className={`text-[11px] font-bold px-3 py-1 rounded-full border ${
+                        job.rawJob?.paymentStatus === 'PAID'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : job.rawJob?.paymentStatus === 'PARTIAL'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-rose-50 text-rose-700 border-rose-200'
+                      }`}
+                    >
+                      {job.rawJob?.paymentStatus || 'UNPAID'} (₹{job.rawJob?.paidAmount !== undefined ? job.rawJob.paidAmount : 0}/{job.rawJob?.grandTotal || 0})
+                    </span>
                   </div>
 
-                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${job.typeColor}`}>
-                    {job.serviceType}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={getWhatsAppLink(job)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-all font-bold text-xs flex items-center gap-1.5 shadow-2xs"
+                      title="Send WhatsApp Tracking Link"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      <span className="hidden sm:inline">WhatsApp</span>
+                    </a>
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${job.typeColor}`}>
+                      {job.serviceType}
+                    </span>
+                  </div>
                 </div>
 
                 {/* 5-Step Stepper Progress Bar */}
@@ -382,23 +468,44 @@ const Jobs = () => {
                   <span>{job.phone}</span>
                 </div>
 
-                {/* Dual Action Buttons */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* Triple Action Buttons */}
+                <div className="grid grid-cols-3 gap-2.5">
+                  <button
+                    onClick={() => handleOpenPaymentModal(job)}
+                    className="w-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold py-2.5 px-3 rounded-2xl text-xs transition-all shadow-2xs active:scale-98 flex items-center justify-center gap-1.5"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Payment</span>
+                  </button>
+
                   <button
                     onClick={() => handleActionClick(job, job.secondaryAction)}
                     disabled={updatingStatusId === (job._id || job.id)}
-                    className="w-full bg-white hover:bg-gray-50 border border-gray-300 text-gray-900 font-bold py-3 px-4 rounded-2xl text-xs sm:text-sm transition-all shadow-2xs active:scale-98 disabled:opacity-50"
+                    className="w-full bg-white hover:bg-gray-50 border border-gray-300 text-gray-900 font-bold py-2.5 px-3 rounded-2xl text-xs transition-all shadow-2xs active:scale-98 disabled:opacity-50"
                   >
                     {updatingStatusId === (job._id || job.id) ? 'Updating...' : job.secondaryAction}
                   </button>
 
-                  <button
-                    onClick={() => handleActionClick(job, job.primaryAction)}
-                    disabled={updatingStatusId === (job._id || job.id)}
-                    className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-2xl text-xs sm:text-sm transition-all shadow-sm active:scale-98 disabled:opacity-50"
-                  >
-                    {job.primaryAction}
-                  </button>
+                  {(() => {
+                    const isCheckoutAction = job.primaryAction === 'Complete Job';
+                    const isPaymentPending = isCheckoutAction && (job.rawJob?.paymentStatus !== 'PAID' && job.paymentStatus !== 'PAID');
+                    const pendingAmount = job.rawJob?.balanceAmount || 0;
+
+                    return (
+                      <button
+                        onClick={() => handleActionClick(job, job.primaryAction)}
+                        disabled={updatingStatusId === (job._id || job.id) || isPaymentPending}
+                        title={isPaymentPending ? `Complete payment (₹${pendingAmount} pending) before checkout.` : ''}
+                        className={`w-full font-bold py-2.5 px-3 rounded-2xl text-xs transition-all shadow-sm active:scale-98 disabled:opacity-50 ${
+                          isPaymentPending
+                            ? 'bg-amber-100 text-amber-800 border border-amber-300 cursor-not-allowed'
+                            : 'bg-black hover:bg-gray-800 text-white'
+                        }`}
+                      >
+                        {isPaymentPending ? `Pay Pending (₹${pendingAmount})` : job.primaryAction}
+                      </button>
+                    );
+                  })()}
                 </div>
               </motion.div>
             ))}
@@ -563,9 +670,16 @@ const Jobs = () => {
                 )}
               </div>
 
-              <p className="text-xs text-gray-600 font-medium mb-5 leading-relaxed bg-blue-50/70 border border-blue-100 p-3 rounded-xl">
-                Marking this job as <strong>Completed</strong> will confirm customer delivery, release active workshop space, and update daily completion statistics.
-              </p>
+              {selectedJobForModal.rawJob?.paymentStatus !== 'PAID' ? (
+                <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs font-semibold text-red-800 mb-4 flex items-center gap-2.5 shadow-2xs">
+                  <AlertCircle className="w-5 h-5 shrink-0 text-red-600" />
+                  <span>Complete payment (₹{selectedJobForModal.rawJob?.balanceAmount || 0} pending) before checkout.</span>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-600 font-medium mb-5 leading-relaxed bg-blue-50/70 border border-blue-100 p-3 rounded-xl">
+                  Marking this job as <strong>Completed</strong> will confirm customer delivery, release active workshop space, and update daily completion statistics.
+                </p>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <button
@@ -579,8 +693,8 @@ const Jobs = () => {
                 <button
                   type="button"
                   onClick={handleCompleteCheckout}
-                  disabled={updatingStatusId === (selectedJobForModal._id || selectedJobForModal.id)}
-                  className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-2xl text-xs sm:text-sm transition-all shadow-sm active:scale-98 flex items-center justify-center gap-2 disabled:opacity-50"
+                  disabled={updatingStatusId === (selectedJobForModal._id || selectedJobForModal.id) || selectedJobForModal.rawJob?.paymentStatus !== 'PAID'}
+                  className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-2xl text-xs sm:text-sm transition-all shadow-sm active:scale-98 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {updatingStatusId === (selectedJobForModal._id || selectedJobForModal.id) ? (
                     <>
@@ -646,6 +760,144 @@ const Jobs = () => {
                   </button>
                 ))}
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================== */}
+      {/* MODAL: RECORD / UPDATE PAYMENT                             */}
+      {/* ========================================================== */}
+      <AnimatePresence>
+        {isPaymentOpen && selectedJobForModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsPaymentOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-xs"
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-3xl p-6 w-full max-w-md border border-gray-100 shadow-2xl relative z-10"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Record Job Payment</h3>
+                    <p className="text-xs text-gray-500 font-medium">Plate: {selectedJobForModal.vehiclePlate}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsPaymentOpen(false)}
+                  className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSavePayment} className="space-y-4 my-4">
+                <div className="bg-gray-50 border border-gray-200/80 rounded-2xl p-4 space-y-2 text-xs sm:text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 font-medium">Customer:</span>
+                    <span className="font-bold text-gray-900">{selectedJobForModal.customerName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 font-medium">Grand Total:</span>
+                    <span className="font-extrabold text-gray-900">₹{selectedJobForModal.rawJob?.grandTotal || 0}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-gray-200 pt-2">
+                    <span className="text-gray-500 font-medium">Remaining Balance:</span>
+                    <span className="font-extrabold text-rose-600">
+                      ₹{Math.max(0, (selectedJobForModal.rawJob?.grandTotal || 0) - (Number(paymentForm.paidAmount) || 0)).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                    PAID AMOUNT (₹)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={selectedJobForModal.rawJob?.grandTotal || 0}
+                    required
+                    value={paymentForm.paidAmount}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, paidAmount: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10"
+                    placeholder="Enter paid amount"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                    PAYMENT METHOD
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {['CASH', 'UPI', 'CARD', 'POS'].map((method) => (
+                      <button
+                        key={method}
+                        type="button"
+                        onClick={() => setPaymentForm({ ...paymentForm, paymentMethod: method })}
+                        className={`py-2 rounded-xl text-xs font-bold transition-all border ${
+                          paymentForm.paymentMethod === method
+                            ? 'bg-black text-white border-black'
+                            : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        {method}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                    TRANSACTION REFERENCE (OPTIONAL)
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentForm.transactionRef}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, transactionRef: e.target.value })}
+                    placeholder="e.g. UPI Ref #9876543210"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsPaymentOpen(false)}
+                    disabled={submittingPayment}
+                    className="w-full bg-white hover:bg-gray-50 border border-gray-300 text-gray-800 font-bold py-3 px-4 rounded-2xl text-xs transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingPayment}
+                    className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-2xl text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {submittingPayment ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <span>Save Payment</span>
+                    )}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

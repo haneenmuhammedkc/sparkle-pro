@@ -63,3 +63,13 @@ export const cancelJob = async (id) => {
   const response = await api.delete(`/owner/jobs/${id}`);
   return response.data;
 };
+
+/**
+ * Record/update manual payment for a job
+ * @param {string} id
+ * @param {Object} paymentData - { paidAmount, paymentMethod, transactionRef }
+ */
+export const recordJobPayment = async (id, paymentData) => {
+  const response = await api.patch(`/owner/jobs/${id}/payment`, paymentData);
+  return response.data;
+};

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Check,
@@ -16,28 +16,15 @@ import {
   AlertCircle,
   Search,
   CheckCircle2,
-  Loader2
+  Loader2,
+  MessageSquare
 } from 'lucide-react';
 import Sidebar from '../../../../components/layout/Sidebar';
 import { useAuth } from '../../../../context/AuthContext';
 import * as jobService from '../services/jobService.js';
 import * as customerService from '../../customers/services/customerService.js';
 import * as staffService from '../../staff/services/staffService.js';
-const BASE_WHEEL_SERVICES = {
-  '2-wheeler': [
-    { id: 'bike-wash', name: 'Bike Foam Wash', time: '20m', price: 200, icon: Droplet },
-    { id: 'chain-lube', name: 'Chain Lube & Engine Polish', time: '15m', price: 150, icon: Sparkles },
-    { id: 'bike-ceramic', name: 'Bike Ceramic Wax', time: '30m', price: 500, icon: Shield },
-    { id: 'matte-finish', name: 'Matte Finish Shield', time: '25m', price: 350, icon: Disc },
-  ],
-  '4-wheeler': [
-    { id: 'ext-wash', name: 'Exterior Wash', time: '45m', price: 400, icon: Droplet },
-    { id: 'int-detail', name: 'Interior Detail', time: '60m', price: 650, icon: Sparkles },
-    { id: 'ceramic-wax', name: 'Ceramic Wax Protect', time: '30m', price: 1200, icon: Shield },
-    { id: 'tire-shine', name: 'Tire & Wheel Shine', time: '15m', price: 150, icon: Disc },
-  ],
-};
-
+import * as settingsService from '../../settings/services/settingsService.js';
 const VEHICLE_TYPES = {
   '2-wheeler': ['Sports Bike', 'Scooter / Moped', 'Cruiser / Superbike'],
   '4-wheeler': ['SUV / Crossover', 'Sedan', 'Hatchback', 'Pickup Truck'],
@@ -68,11 +55,31 @@ const NewJob = () => {
 
   // Category State: '2-wheeler' | '4-wheeler' | 'custom'
   const [wheelCategory, setWheelCategory] = useState('4-wheeler');
-  const [selectedServices, setSelectedServices] = useState(['ext-wash', 'int-detail']);
+  const [selectedServices, setSelectedServices] = useState([]);
   const [assignedStaff, setAssignedStaff] = useState(null);
-  const [priorityLevel, setPriorityLevel] = useState('Normal');
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
+
+  // Dynamic Business Services State (Loaded from Settings API / Business Config)
+  const [businessServices, setBusinessServices] = useState(null);
+
+  // Fetch Configured Business Services from Settings API
+  useEffect(() => {
+    const fetchConfiguredServices = async () => {
+      try {
+        const res = await settingsService.getServices();
+        if (res.success && res.data) {
+          const rawConfigured = res.data.servicesConfigured || [];
+          setBusinessServices(rawConfigured);
+        }
+      } catch (err) {
+        console.error('Failed to load business services from Settings API:', err);
+        setBusinessServices([]);
+      }
+    };
+
+    fetchConfiguredServices();
+  }, []);
 
   // Fetch Live Staff Members from Backend
   useEffect(() => {
@@ -86,6 +93,8 @@ const NewJob = () => {
           setStaffList(assignable);
           if (assignable.length > 0) {
             setAssignedStaff(assignable[0]._id);
+          } else {
+            setAssignedStaff(null);
           }
         }
       } catch (err) {
@@ -145,41 +154,104 @@ const NewJob = () => {
     }
   };
 
-  // Switch Wheel Category & reset services to valid defaults
+  // Switch Wheel Category & reset vehicle type
   const handleWheelCategoryChange = (category) => {
     setWheelCategory(category);
     if (category === '2-wheeler') {
-      setSelectedServices(['bike-wash', 'chain-lube']);
-      setVehicleType('SUV / Crossover');
+      setVehicleType('Scooter / Moped');
     } else if (category === '4-wheeler') {
-      setSelectedServices(['ext-wash', 'int-detail']);
       setVehicleType('SUV / Crossover');
     } else {
-      setSelectedServices(['custom-service-1']);
       setVehicleType('Auto Rickshaw (3-Wheeler)');
     }
   };
 
-  // Build active service list based on category & business configuration
-  const activeAvailableServices =
-    wheelCategory === 'custom'
-      ? [
-          {
-            id: 'custom-service-1',
-            name: customDetails.serviceName || 'Custom Service Package',
-            time: customDetails.time || '30m',
-            price: Number(customDetails.price) || 350,
-            icon: Truck,
-          },
-          {
-            id: 'custom-service-2',
-            name: 'Heavy Interior Steam Sanitization',
-            time: '45m',
-            price: 500,
-            icon: Sparkles,
-          },
-        ]
-      : BASE_WHEEL_SERVICES[wheelCategory];
+  // Resolve dynamic vehicle-specific business services strictly from Settings API
+  const resolveServicesForCategory = () => {
+    if (wheelCategory === 'custom') {
+      const customConfigured = (businessServices || []).filter(
+        (s) => (s.vehicleCategory === 'custom' || s.category === 'Van' || s.category === 'Truck') && s.enabled !== false
+      );
+
+      if (customConfigured.length > 0) {
+        return customConfigured.map((s, idx) => ({
+          id: String(s.id || s._id || `srv-custom-${idx}`),
+          serviceId: String(s.id || s._id || `srv-custom-${idx}`),
+          name: s.name,
+          time: s.duration || '30m',
+          price: Number(s.price || 0),
+          icon: Truck,
+        }));
+      }
+
+      return [
+        {
+          id: 'custom-service-1',
+          serviceId: 'custom-service-1',
+          name: customDetails.serviceName || 'Custom Service Package',
+          time: customDetails.time || '30m',
+          price: Number(customDetails.price) || 350,
+          icon: Truck,
+        },
+      ];
+    }
+
+    if (businessServices && Array.isArray(businessServices) && businessServices.length > 0) {
+      const isTwoWheeler = wheelCategory === '2-wheeler';
+      const isSUVType = vehicleType === 'SUV / Crossover';
+
+      const filtered = businessServices
+        .filter((s) => {
+          if (s.enabled === false) return false;
+          const cat = (s.vehicleCategory || s.category || '').toLowerCase();
+
+          if (isTwoWheeler) {
+            return cat === '2-wheeler' || cat === 'bike';
+          } else {
+            if (cat === '4-wheeler' || cat === 'car') {
+              return true;
+            }
+            if (cat === 'suv') {
+              return isSUVType;
+            }
+            return false;
+          }
+        })
+        .map((s, idx) => {
+          const realId = s.id || s._id || ('biz-srv-' + idx);
+          const priceVal = Number(s.price !== undefined ? s.price : (isTwoWheeler ? s.pricing?.Bike?.price : s.pricing?.Car?.price) || 0);
+          const timeVal = s.duration || '30m';
+
+          return {
+            id: String(realId),
+            serviceId: String(realId),
+            name: s.name,
+            time: timeVal,
+            price: priceVal,
+            icon: isTwoWheeler ? Bike : Droplet,
+          };
+        });
+
+      return filtered;
+    }
+
+    return [];
+  };
+
+  const activeAvailableServices = resolveServicesForCategory();
+
+  // Auto-sync selected services when category, vehicleType or businessServices change
+  useEffect(() => {
+    const available = resolveServicesForCategory();
+    if (available.length > 0) {
+      const validSelected = selectedServices.filter((id) => available.some((s) => s.id === id));
+      if (validSelected.length === 0) {
+        setSelectedServices([available[0].id]);
+      }
+    } else {
+      setSelectedServices([]);
+    }
+  }, [wheelCategory, vehicleType, businessServices]);
 
   // Service toggle handler
   const toggleService = (serviceId) => {
@@ -197,6 +269,8 @@ const NewJob = () => {
 
   const tax = Number((subtotal * 0.08).toFixed(2));
   const grandTotal = (subtotal + tax).toFixed(2);
+
+  const [createdJobSuccess, setCreatedJobSuccess] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -224,14 +298,13 @@ const NewJob = () => {
       assignedStaff: assignedStaff
         ? { staffId: assignedStaff }
         : null,
-      priorityLevel,
       notes,
     };
 
     try {
       const res = await jobService.createJob(payload);
-      if (res.success) {
-        navigate('/jobs');
+      if (res.success && res.data) {
+        setCreatedJobSuccess(res.data);
       }
     } catch (err) {
       setErrorMessage(err.message || 'Failed to create job card. Please check inputs and retry.');
@@ -382,64 +455,59 @@ const NewJob = () => {
                 {/* STANDARD VEHICLE INPUTS OR CUSTOM SPECIFICATION */}
                 {wheelCategory !== 'custom' ? (
                   <div className="space-y-3.5">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="grid grid-cols-2 gap-3">
                       <input
                         name="vehiclePlate"
                         type="text"
                         required
                         value={vehiclePlate}
                         onChange={(e) => setVehiclePlate(e.target.value)}
-                        placeholder="Registration Plate (e.g. KL-58-D-2935)"
-                        className="w-full px-4 py-3 bg-gray-50/70 border border-gray-200/90 rounded-2xl text-sm font-semibold uppercase text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 placeholder:normal-case placeholder:font-normal placeholder:text-gray-400"
+                        placeholder="Plate Number (e.g. KL-07-CC-9999)"
+                        className="w-full px-4 py-3 bg-gray-50/70 border border-gray-200/90 rounded-2xl text-sm font-bold uppercase tracking-wider text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
                       />
                       <input
                         name="vehicleBrand"
                         type="text"
                         value={vehicleBrand}
                         onChange={(e) => setVehicleBrand(e.target.value)}
-                        placeholder="Brand / Make (e.g. BMW, Honda)"
-                        className="w-full px-4 py-3 bg-gray-50/70 border border-gray-200/90 rounded-2xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 placeholder:text-gray-400"
+                        placeholder="Brand (e.g. Toyota / Honda)"
+                        className="w-full px-4 py-3 bg-gray-50/70 border border-gray-200/90 rounded-2xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="grid grid-cols-2 gap-3">
                       <input
                         name="vehicleModel"
                         type="text"
                         required
                         value={vehicleModel}
                         onChange={(e) => setVehicleModel(e.target.value)}
-                        placeholder="Vehicle Model (e.g. X5, Civic)"
-                        className="w-full px-4 py-3 bg-gray-50/70 border border-gray-200/90 rounded-2xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 placeholder:text-gray-400"
+                        placeholder="Model (e.g. Fortuner / City)"
+                        className="w-full px-4 py-3 bg-gray-50/70 border border-gray-200/90 rounded-2xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
                       />
 
                       <select
-                        name="vehicleType"
                         value={vehicleType}
                         onChange={(e) => setVehicleType(e.target.value)}
-                        className="w-full px-4 py-3 bg-gray-50/70 border border-gray-200/90 rounded-2xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
+                        className="w-full px-4 py-3 bg-gray-50/70 border border-gray-200/90 rounded-2xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400"
                       >
-                        {VEHICLE_TYPES[wheelCategory].map((type) => (
-                          <option key={type} value={type}>
-                            {type}
+                        {VEHICLE_TYPES[wheelCategory]?.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
                           </option>
                         ))}
                       </select>
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl space-y-3">
-                    <span className="block text-xs font-bold text-gray-700 uppercase">
-                      On-The-Fly Custom Vehicle Details
-                    </span>
-
+                  <div className="space-y-3.5 bg-gray-50/70 border border-gray-200/90 rounded-2xl p-4">
                     <input
                       name="vehiclePlate"
                       type="text"
                       required
                       value={vehiclePlate}
                       onChange={(e) => setVehiclePlate(e.target.value)}
-                      placeholder="Vehicle Identification / Plate Number"
+                      placeholder="Registration Number / Unique ID"
                       className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-bold uppercase text-gray-900"
                     />
 
@@ -489,45 +557,64 @@ const NewJob = () => {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {activeAvailableServices.map((service) => {
-                    const IconComp = service.icon;
-                    const isSelected = selectedServices.includes(service.id);
+                {activeAvailableServices.length === 0 ? (
+                  <div className="p-6 bg-gray-50 border border-gray-200/90 rounded-2xl text-center space-y-3">
+                    <AlertCircle className="w-8 h-8 text-amber-500 mx-auto" />
+                    <h4 className="text-sm font-bold text-gray-800">No services configured for this vehicle category</h4>
+                    <p className="text-xs text-gray-500 font-medium">
+                      Please configure or enable services in <strong>Settings → Services & Pricing</strong>.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/settings')}
+                      className="px-4 py-2 bg-black text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-2xs"
+                    >
+                      Go to Services & Pricing
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {activeAvailableServices.map((service) => {
+                      const IconComp = service.icon || Droplet;
+                      const isSelected = selectedServices.includes(service.id);
 
-                    return (
-                      <div
-                        key={service.id}
-                        onClick={() => toggleService(service.id)}
-                        className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start justify-between ${
-                          isSelected
-                            ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
-                            : 'bg-gray-50/70 hover:bg-gray-100 text-gray-900 border-gray-200/90'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={`p-2.5 rounded-xl ${isSelected ? 'bg-white/10 text-white' : 'bg-white text-gray-700 shadow-2xs'}`}>
-                            <IconComp className="w-5 h-5" />
+                      return (
+                        <div
+                          key={service.id}
+                          onClick={() => toggleService(service.id)}
+                          className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start justify-between ${
+                            isSelected
+                              ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
+                              : 'bg-gray-50/70 hover:bg-gray-100 text-gray-900 border-gray-200/90'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`p-2.5 rounded-xl ${isSelected ? 'bg-white/10 text-white' : 'bg-white text-gray-700 shadow-2xs'}`}>
+                              <IconComp className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-bold tracking-tight">
+                                {service.name} <span className={isSelected ? "text-emerald-300 font-extrabold" : "text-emerald-700 font-extrabold"}>— ₹{service.price}</span>
+                              </h4>
+                              <span className={`text-xs font-semibold block mt-0.5 ${isSelected ? 'text-gray-300' : 'text-gray-500'}`}>
+                                Duration: {service.time}
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="text-sm font-bold tracking-tight">{service.name}</h4>
-                            <span className={`text-xs font-semibold block mt-0.5 ${isSelected ? 'text-gray-300' : 'text-gray-500'}`}>
-                              {service.time}
-                            </span>
+
+                          <div className="text-right">
+                            <span className="text-base font-black block">₹{service.price}</span>
+                            {isSelected && (
+                              <span className="inline-block mt-1 bg-white text-gray-900 text-[10px] font-black px-1.5 py-0.5 rounded-md shadow-2xs">
+                                ADDED
+                              </span>
+                            )}
                           </div>
                         </div>
-
-                        <div className="text-right">
-                          <span className="text-sm font-extrabold block">₹{service.price}</span>
-                          {isSelected && (
-                            <span className="inline-block mt-1 bg-white text-gray-900 text-[10px] font-black px-1.5 py-0.5 rounded-md">
-                              ADDED
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </motion.section>
 
               {/* SECTION 4: ASSIGN STAFF & PRIORITY */}
@@ -538,7 +625,7 @@ const NewJob = () => {
                 className="bg-white border border-gray-200/90 rounded-3xl p-5 sm:p-7 shadow-2xs space-y-4"
               >
                 <h2 className="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight">
-                  Assign Staff & Priority
+                  Assign Staff
                 </h2>
 
                 {staffLoading ? (
@@ -588,28 +675,6 @@ const NewJob = () => {
                     })}
                   </div>
                 )}
-
-                <div className="pt-2">
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                    PRIORITY LEVEL
-                  </label>
-                  <div className="grid grid-cols-3 gap-2.5">
-                    {['Normal', 'High', 'VIP'].map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setPriorityLevel(p)}
-                        className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${
-                          priorityLevel === p
-                            ? 'bg-gray-900 text-white border-gray-900'
-                            : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </motion.section>
 
             </div>
@@ -678,6 +743,81 @@ const NewJob = () => {
           </div>
         </form>
       </main>
+
+      {/* POST-CREATION WHATSAPP LINK CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {createdJobSuccess && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-xs"
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-3xl p-6 w-full max-w-md border border-gray-100 shadow-2xl relative z-10 text-center"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 mx-auto mb-4">
+                <CheckCircle2 className="w-7 h-7" />
+              </div>
+
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight">Job Card Created!</h3>
+              <p className="text-xs text-gray-500 font-semibold mt-1">
+                Job ID: <strong>{createdJobSuccess.jobId || createdJobSuccess.vehiclePlate}</strong>
+              </p>
+
+              <div className="bg-gray-50 border border-gray-200/80 rounded-2xl p-4 my-5 text-left text-xs sm:text-sm space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">Customer:</span>
+                  <span className="font-bold text-gray-900">{createdJobSuccess.customerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">Vehicle:</span>
+                  <span className="font-bold text-gray-900">{createdJobSuccess.vehiclePlate} ({createdJobSuccess.vehicleModel})</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">Total Bill:</span>
+                  <span className="font-extrabold text-gray-900">₹{createdJobSuccess.grandTotal}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2.5">
+                {(() => {
+                  const cleanPhone = (createdJobSuccess.customerPhone || '').replace(/[^0-9]/g, '');
+                  const trackingUrl = `${window.location.origin}/tracking/${createdJobSuccess.trackingToken}`;
+                  const businessName = business?.name || 'SparklePro Workshop';
+                  const message = `Hello ${createdJobSuccess.customerName},\n\nYour vehicle ${createdJobSuccess.vehiclePlate} (${createdJobSuccess.vehicleModel}) has been checked in at ${businessName}.\n\nJob ID: ${createdJobSuccess.jobId}\nTracking Link:\n${trackingUrl}\n\nThank you!`;
+                  const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+
+                  return (
+                    <a
+                      href={waUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-2xl text-xs sm:text-sm transition-all shadow-sm flex items-center justify-center gap-2"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      <span>Send WhatsApp Tracking Link</span>
+                    </a>
+                  );
+                })()}
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/jobs')}
+                  className="w-full py-3.5 bg-black hover:bg-gray-800 text-white font-bold rounded-2xl text-xs sm:text-sm transition-all"
+                >
+                  View All Jobs
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

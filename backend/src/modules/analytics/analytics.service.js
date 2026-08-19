@@ -78,6 +78,7 @@ export const getOverviewAnalytics = async (businessId, query = {}) => {
     cancelledJobsCount,
     newCustomersCount,
     returningCustomersCount,
+    paymentBreakdownResult,
   ] = await Promise.all([
     // Total Realized Revenue (Completed jobs within timeframe)
     Job.aggregate([
@@ -131,9 +132,37 @@ export const getOverviewAnalytics = async (businessId, query = {}) => {
       ],
       lastVisitAt: { $gte: startDate, $lte: endDate },
     }),
+
+    // Payment breakdown aggregation
+    Job.aggregate([
+      {
+        $match: {
+          businessId: bId,
+          status: { $ne: 'Cancelled' },
+          createdAt: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          paidRevenue: { $sum: '$paidAmount' },
+          outstandingBalance: { $sum: '$balanceAmount' },
+          paidCount: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'PAID'] }, 1, 0] } },
+          partialCount: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'PARTIAL'] }, 1, 0] } },
+          unpaidCount: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'UNPAID'] }, 1, 0] } },
+        },
+      },
+    ]),
   ]);
 
   const totalRevenue = revenueResult.length > 0 ? revenueResult[0].totalRevenue || 0 : 0;
+  const paymentBreakdown = (paymentBreakdownResult && paymentBreakdownResult.length > 0) ? paymentBreakdownResult[0] : {};
+  const paidRevenue = paymentBreakdown.paidRevenue || 0;
+  const outstandingBalance = paymentBreakdown.outstandingBalance || 0;
+  const paidCount = paymentBreakdown.paidCount || 0;
+  const partialCount = paymentBreakdown.partialCount || 0;
+  const unpaidCount = paymentBreakdown.unpaidCount || 0;
+
   const totalJobs = totalJobsCount || 0;
   const completedJobs = completedJobsCount || 0;
   const avgJobValue = completedJobs > 0 ? Math.round((totalRevenue / completedJobs) * 100) / 100 : 0;
@@ -141,6 +170,11 @@ export const getOverviewAnalytics = async (businessId, query = {}) => {
 
   return {
     totalRevenue,
+    paidRevenue,
+    outstandingBalance,
+    paidCount,
+    partialCount,
+    unpaidCount,
     totalJobs,
     completedJobs,
     cancelledJobs: cancelledJobsCount || 0,

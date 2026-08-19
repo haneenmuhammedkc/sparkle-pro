@@ -61,7 +61,6 @@ export const createJob = async (ownerId, data) => {
     selectedServices,
     customDetails,
     assignedStaff,
-    priorityLevel,
     estimatedFinishTime,
     notes,
   } = data;
@@ -245,6 +244,24 @@ export const createJob = async (ownerId, data) => {
     }
   }
 
+  // 3b. Calculate Initial Payment Fields
+  const inputPaidAmount = Math.max(0, Number(data.paidAmount) || 0);
+  if (inputPaidAmount > grandTotal) {
+    const error = new Error(`Initial paid amount (₹${inputPaidAmount}) cannot exceed grand total (₹${grandTotal}).`);
+    error.statusCode = 400;
+    throw error;
+  }
+  const initialPaid = Number(inputPaidAmount.toFixed(2));
+  const initialBalance = Number((grandTotal - initialPaid).toFixed(2));
+  let initialPaymentStatus = 'UNPAID';
+  if (initialPaid === grandTotal) {
+    initialPaymentStatus = 'PAID';
+  } else if (initialPaid > 0) {
+    initialPaymentStatus = 'PARTIAL';
+  }
+  const initialPaymentMethod = data.paymentMethod ? String(data.paymentMethod).toUpperCase() : null;
+  const initialTxnRef = data.transactionRef ? String(data.transactionRef).trim() : '';
+
   // 6. Build Job Document
   const job = new Job({
     jobId,
@@ -265,10 +282,15 @@ export const createJob = async (ownerId, data) => {
     taxAmount,
     grandTotal,
     currency,
+    paymentStatus: initialPaymentStatus,
+    paymentMethod: initialPaymentMethod,
+    paidAmount: initialPaid,
+    balanceAmount: initialBalance,
+    transactionRef: initialTxnRef,
+    paidAt: initialPaid > 0 ? new Date() : null,
     status: 'Pending',
     workflowStep: 'Wait',
     currentStepIndex: 0,
-    priorityLevel: priorityLevel || 'Normal',
     assignedStaff: resolvedAssignedStaff,
     estimatedFinishTime: estimatedFinishTime || '11:45 AM',
     notes: notes || '',
@@ -414,7 +436,12 @@ export const updateJobStatusForOwner = async (jobIdOrObjectId, businessId, statu
     }
   }
 
-  if (inputStatus === 'Completed') {
+  if (inputStatus === 'Completed' || targetStatus === 'Completed') {
+    if (job.paymentStatus !== 'PAID') {
+      const error = new Error('Cannot complete job checkout. Full payment must be recorded before checkout.');
+      error.statusCode = 400;
+      throw error;
+    }
     targetStatus = 'Completed';
     job.completedAt = new Date();
   } else if (inputStatus === 'Cancelled') {
@@ -458,9 +485,71 @@ export const deleteJobForOwner = async (jobIdOrObjectId, businessId) => {
 };
 
 /**
+ * 6b. Record / Update Job Payment (Owner Isolated)
+ */
+export const recordPaymentForOwner = async (jobIdOrObjectId, businessId, paymentData = {}) => {
+  const job = await getJobByIdForOwner(jobIdOrObjectId, businessId);
+
+  const inputPaidAmount = Number(paymentData.paidAmount);
+
+  if (isNaN(inputPaidAmount) || inputPaidAmount < 0) {
+    const error = new Error('Paid amount must be a valid non-negative number.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (inputPaidAmount > job.grandTotal) {
+    const error = new Error(`Paid amount (₹${inputPaidAmount}) cannot exceed grand total (₹${job.grandTotal}).`);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const validMethods = ['CASH', 'UPI', 'CARD', 'POS', 'OTHER'];
+  const method = paymentData.paymentMethod ? String(paymentData.paymentMethod).toUpperCase() : 'CASH';
+  if (!validMethods.includes(method)) {
+    const error = new Error('Invalid payment method. Allowed methods: CASH, UPI, CARD, POS, OTHER.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const newPaidAmount = Number(inputPaidAmount.toFixed(2));
+  const newBalanceAmount = Number((job.grandTotal - newPaidAmount).toFixed(2));
+
+  let computedStatus = 'UNPAID';
+  if (newPaidAmount === job.grandTotal) {
+    computedStatus = 'PAID';
+  } else if (newPaidAmount > 0) {
+    computedStatus = 'PARTIAL';
+  }
+
+  job.paidAmount = newPaidAmount;
+  job.balanceAmount = newBalanceAmount;
+  job.paymentStatus = computedStatus;
+  job.paymentMethod = method;
+  job.transactionRef = (paymentData.transactionRef || '').trim();
+
+  if (newPaidAmount > 0) {
+    job.paidAt = new Date();
+  } else {
+    job.paidAt = null;
+  }
+
+  job.activities.unshift({
+    title: 'Payment Recorded',
+    desc: `Payment of ${job.currency || '₹'}${newPaidAmount} recorded via ${method} (${computedStatus})`,
+    time: formatTime(),
+    color: computedStatus === 'PAID' ? 'bg-[#008a5b]' : 'bg-amber-600',
+  });
+
+  await job.save();
+  return job;
+};
+
+/**
  * 7. Dashboard Aggregated Statistics (Owner Isolated)
  */
 export const getJobStatsForOwner = async (ownerId, businessId) => {
+  const bId = new mongoose.Types.ObjectId(String(businessId));
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
@@ -473,37 +562,46 @@ export const getJobStatsForOwner = async (ownerId, businessId) => {
     pendingStarts,
     distinctCustomers,
     workflowCountsRaw,
-    priorityJob,
+    paymentStatsRaw,
   ] = await Promise.all([
     // Active vehicles (Pending, In Progress, Ready)
     Job.countDocuments({
-      businessId,
+      businessId: bId,
       status: { $in: ['Pending', 'In Progress', 'Ready'] },
     }),
     // Completed today
     Job.countDocuments({
-      businessId,
+      businessId: bId,
       status: 'Completed',
       completedAt: { $gte: startOfToday, $lte: endOfToday },
     }),
     // Pending starts
     Job.countDocuments({
-      businessId,
+      businessId: bId,
       status: 'Pending',
     }),
     // Distinct customers served
-    Job.distinct('customerPhone', { businessId }),
+    Job.distinct('customerPhone', { businessId: bId }),
     // Workflow counts breakdown
     Job.aggregate([
-      { $match: { businessId, status: { $ne: 'Cancelled' } } },
+      { $match: { businessId: bId, status: { $ne: 'Cancelled' } } },
       { $group: { _id: '$workflowStep', count: { $sum: 1 } } },
     ]),
-    // Priority active job
-    Job.findOne({
-      businessId,
-      priorityLevel: { $in: ['High', 'Express'] },
-      status: { $in: ['Pending', 'In Progress'] },
-    }).sort({ updatedAt: -1 }),
+    // Payment statistics aggregation
+    Job.aggregate([
+      { $match: { businessId: bId, status: { $ne: 'Cancelled' } } },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$grandTotal' },
+          totalPaid: { $sum: '$paidAmount' },
+          totalOutstanding: { $sum: '$balanceAmount' },
+          unpaidCount: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'UNPAID'] }, 1, 0] } },
+          partialCount: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'PARTIAL'] }, 1, 0] } },
+          paidCount: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'PAID'] }, 1, 0] } },
+        },
+      },
+    ]),
   ]);
 
   const workflowMapCounts = {
@@ -523,13 +621,22 @@ export const getJobStatsForOwner = async (ownerId, businessId) => {
     if (stepLower === 'ready') workflowMapCounts.ready = item.count;
   });
 
+  const paymentMetrics = paymentStatsRaw[0] || {
+    totalRevenue: 0,
+    totalPaid: 0,
+    totalOutstanding: 0,
+    unpaidCount: 0,
+    partialCount: 0,
+    paidCount: 0,
+  };
+
   return {
     vehiclesActive,
     completedToday,
     pendingStarts,
     customersServed: distinctCustomers.length,
     workflowCounts: workflowMapCounts,
-    priorityJob,
+    payments: paymentMetrics,
   };
 };
 
@@ -537,12 +644,14 @@ export const getJobStatsForOwner = async (ownerId, businessId) => {
  * 8. Secure Public Vehicle Tracking
  */
 export const getPublicTracking = async (params) => {
-  const { token, plate, phone } = params;
+  const { token, trackingToken, plate, phone } = params;
+
+  const activeToken = (token || trackingToken || '').trim();
 
   let filter = null;
 
-  if (token && token.trim() !== '') {
-    filter = { trackingToken: token.trim() };
+  if (activeToken !== '') {
+    filter = { trackingToken: activeToken };
   } else if (plate && phone) {
     filter = {
       vehiclePlate: plate.trim().toUpperCase(),
@@ -554,11 +663,30 @@ export const getPublicTracking = async (params) => {
     throw error;
   }
 
-  const job = await Job.findOne(filter);
+  const job = await Job.findOne(filter).sort({ createdAt: -1 });
   if (!job) {
     const error = new Error('No active vehicle service found matching the provided tracking details.');
     error.statusCode = 404;
     throw error;
+  }
+
+  // Fetch Business information safely for customer visibility
+  let businessInfo = null;
+  if (job.businessId) {
+    const biz = await Business.findById(job.businessId).select(
+      'name logo mobileNumber whatsappNumber address openingTime closingTime'
+    );
+    if (biz) {
+      businessInfo = {
+        name: biz.name || '',
+        logo: biz.logo || null,
+        mobileNumber: biz.mobileNumber || '',
+        whatsappNumber: biz.whatsappNumber || '',
+        address: biz.address || '',
+        openingTime: biz.openingTime || '',
+        closingTime: biz.closingTime || '',
+      };
+    }
   }
 
   // Generate public timeline telemetry
@@ -599,19 +727,42 @@ export const getPublicTracking = async (params) => {
   return {
     jobId: job.jobId,
     vehiclePlate: job.vehiclePlate,
-    vehicleModel: job.vehicleModel,
-    vehicleBrand: job.vehicleBrand,
-    customerName: job.customerName,
-    customerPhoneMasked: maskedPhone,
+    vehicleCategory: job.vehicleCategory || 'Car',
+    wheelCategory: job.wheelCategory || '4-wheeler',
+    vehicleType: job.vehicleType || '',
+    vehicleModel: job.vehicleModel || '',
+    vehicleBrand: job.vehicleBrand || '',
+
     status: job.status,
     workflowStep: job.workflowStep,
     currentStepIndex: job.currentStepIndex,
-    estimatedFinishTime: job.estimatedFinishTime || '30 mins',
+
+    services: job.services.map((s) => ({
+      serviceId: s.serviceId || null,
+      name: s.name,
+      price: s.price,
+      duration: s.duration,
+    })),
+
+    subtotal: job.subtotal,
+    taxAmount: job.taxAmount,
+    grandTotal: job.grandTotal,
+    currency: job.currency,
+
+    customerName: job.customerName,
+    customerPhoneMasked: maskedPhone,
+
     assignedStaff: job.assignedStaff
       ? { name: job.assignedStaff.name, avatar: job.assignedStaff.avatar }
       : { name: 'Assigned Specialist', avatar: null },
-    services: job.services.map((s) => ({ name: s.name, duration: s.duration })),
+
+    business: businessInfo,
+
+    estimatedFinishTime: job.estimatedFinishTime || '30 mins',
+    estimatedCompletion: job.estimatedFinishTime || '30 mins',
     timeline: timelineSteps,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
   };
 };
 

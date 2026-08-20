@@ -17,21 +17,13 @@ import {
   Check,
 } from 'lucide-react';
 
-export default function WelcomePage({ onSetUp, onSkip, onContactSupport }) {
+export default function WelcomePage({ onSetUp, onContactSupport }) {
   const navigate = useNavigate();
   const [selectedMobileCard, setSelectedMobileCard] = useState(3);
 
   const handleSetUpClick = () => {
     if (onSetUp) {
       onSetUp();
-    } else {
-      navigate('/setup/business');
-    }
-  };
-
-  const handleSkipClick = () => {
-    if (onSkip) {
-      onSkip();
     } else {
       navigate('/setup/business');
     }
@@ -163,13 +155,6 @@ export default function WelcomePage({ onSetUp, onSkip, onContactSupport }) {
           animate="visible"
           variants={containerVariants}
         >
-          {/* Top Tag */}
-          <motion.div variants={fadeInVariants} className="mb-4">
-            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gray-100/90 border border-gray-200/60 text-xs font-semibold text-gray-700 shadow-2xs">
-              👋 Welcome to SparklePro
-            </span>
-          </motion.div>
-
           {/* Heading */}
           <motion.div variants={fadeInVariants} className="text-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-2 tracking-tight">
@@ -230,18 +215,10 @@ export default function WelcomePage({ onSetUp, onSkip, onContactSupport }) {
             whileHover={{ scale: 1.015 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleSetUpClick}
-            className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-3.5 px-6 rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm cursor-pointer mb-3 transition-colors"
+            className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-3.5 px-6 rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-colors"
           >
             <span>Set Up My Business</span>
             <ArrowRight className="w-4 h-4 stroke-[2.2]" />
-          </motion.button>
-
-          <motion.button
-            variants={fadeInVariants}
-            onClick={handleSkipClick}
-            className="text-xs font-semibold text-gray-500 hover:text-gray-900 transition-colors py-1 cursor-pointer"
-          >
-            Skip for Now
           </motion.button>
         </motion.div>
       </div>
@@ -259,9 +236,6 @@ export default function WelcomePage({ onSetUp, onSkip, onContactSupport }) {
         >
           {/* Top Tag & Header */}
           <motion.div variants={fadeInVariants} className="text-center mb-6">
-            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gray-100/90 border border-gray-200/60 text-xs font-semibold text-gray-700 mb-4 shadow-2xs">
-              👋 Welcome to SparklePro
-            </span>
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight mb-2">
               Welcome! Let's Set Up Your Car Wash.
             </h1>
@@ -343,17 +317,10 @@ export default function WelcomePage({ onSetUp, onSkip, onContactSupport }) {
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleSetUpClick}
-              className="w-full max-w-xs bg-black hover:bg-gray-800 text-white font-semibold py-3.5 px-6 rounded-xl text-sm transition shadow-sm cursor-pointer mx-auto block mb-3"
+              className="w-full max-w-xs bg-black hover:bg-gray-800 text-white font-semibold py-3.5 px-6 rounded-xl text-sm transition shadow-sm cursor-pointer mx-auto block mb-6"
             >
               Set Up My Business
             </motion.button>
-
-            <button
-              onClick={handleSkipClick}
-              className="text-xs font-semibold text-gray-500 hover:text-gray-900 transition cursor-pointer mb-6"
-            >
-              Skip for Now
-            </button>
           </motion.div>
 
           <hr className="border-gray-200 mb-4" />
@@ -387,10 +354,6 @@ export default function WelcomePage({ onSetUp, onSkip, onContactSupport }) {
             transition={{ duration: 0.5 }}
             className="relative z-10"
           >
-            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white border border-gray-200/80 text-xs font-semibold text-gray-700 mb-8 shadow-2xs">
-              👋 Welcome to SparklePro
-            </span>
-
             <h1 className="text-4xl xl:text-5xl font-extrabold text-gray-900 leading-[1.15] tracking-tight mb-4">
               Welcome! Let's Set Up Your Car Wash.
             </h1>
@@ -479,7 +442,7 @@ export default function WelcomePage({ onSetUp, onSkip, onContactSupport }) {
             </motion.div>
 
             {/* Action Row */}
-            <motion.div variants={fadeInVariants} className="flex items-center gap-6">
+            <motion.div variants={fadeInVariants} className="flex items-center">
               <motion.button
                 whileHover={{ scale: 1.015 }}
                 whileTap={{ scale: 0.985 }}
@@ -488,13 +451,6 @@ export default function WelcomePage({ onSetUp, onSkip, onContactSupport }) {
               >
                 Set Up My Business
               </motion.button>
-
-              <button
-                onClick={handleSkipClick}
-                className="text-sm font-semibold text-gray-500 hover:text-gray-900 transition cursor-pointer"
-              >
-                Skip for Now
-              </button>
             </motion.div>
           </motion.div>
         </div>

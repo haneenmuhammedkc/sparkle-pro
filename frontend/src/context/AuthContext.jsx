@@ -11,10 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // One-time cleanup of legacy insecure localStorage refresh token
-  useEffect(() => {
-    localStorage.removeItem('sparklepro_refresh_token');
-  }, []);
+
 
   // Restore User & Business state on initial mount
   useEffect(() => {
@@ -67,9 +64,11 @@ export const AuthProvider = ({ children }) => {
   const handleLogin = async ({ email, password }) => {
     const res = await authService.login({ email, password });
     if (res.success && res.data) {
-      const { user: userData, accessToken } = res.data;
+      const { user: userData, accessToken, refreshToken } = res.data;
       localStorage.setItem('sparklepro_access_token', accessToken);
-      localStorage.removeItem('sparklepro_refresh_token'); // Clean legacy token
+      if (refreshToken) {
+        localStorage.setItem('sparklepro_refresh_token', refreshToken);
+      }
       setToken(accessToken);
       setUser(userData);
       setIsAuthenticated(true);
@@ -86,9 +85,11 @@ export const AuthProvider = ({ children }) => {
   const handleVerifyEmail = async ({ email, otp }) => {
     const res = await authService.verifyEmail({ email, otp });
     if (res.success && res.data) {
-      const { user: userData, accessToken } = res.data;
+      const { user: userData, accessToken, refreshToken } = res.data;
       localStorage.setItem('sparklepro_access_token', accessToken);
-      localStorage.removeItem('sparklepro_refresh_token'); // Clean legacy token
+      if (refreshToken) {
+        localStorage.setItem('sparklepro_refresh_token', refreshToken);
+      }
       setToken(accessToken);
       setUser(userData);
       setIsAuthenticated(true);

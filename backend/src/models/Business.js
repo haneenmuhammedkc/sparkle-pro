@@ -25,8 +25,9 @@ const businessSchema = new mongoose.Schema(
     },
     businessType: {
       type: String,
-      enum: ['car-wash', 'detailing', 'service-center', 'multi-service'],
       default: 'car-wash',
+      trim: true,
+      maxlength: [80, 'Business type must be 80 characters or less.'],
     },
     email: {
       type: String,

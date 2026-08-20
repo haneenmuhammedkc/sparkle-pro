@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Pencil,
@@ -11,12 +11,16 @@ import {
   Lock,
   ChevronDown,
   ChevronUp,
-  KeyRound
+  KeyRound,
+  Upload,
+  Trash2,
+  Building2,
 } from 'lucide-react';
 import * as settingsService from '../services/settingsService';
 
 const BusinessProfile = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,6 +39,8 @@ const BusinessProfile = () => {
   });
 
   const [formData, setFormData] = useState({ ...profile });
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [logoError, setLogoError] = useState(null);
 
   // Change Password Drawer State
   const [isPasswordDrawerOpen, setIsPasswordDrawerOpen] = useState(false);
@@ -69,6 +75,7 @@ const BusinessProfile = () => {
           };
           setProfile(fetchedProfile);
           setFormData(fetchedProfile);
+          setLogoPreview(fetchedProfile.logo);
         }
       } catch (err) {
         if (isMounted) {
@@ -83,8 +90,47 @@ const BusinessProfile = () => {
     return () => { isMounted = false; };
   }, []);
 
+  const handleLogoSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setLogoError('Please upload a PNG, JPG, or WEBP image.');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoError('Logo image must be smaller than 2 MB.');
+      return;
+    }
+
+    setLogoError(null);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result;
+      setLogoPreview(result);
+      setFormData((prev) => ({ ...prev, logo: result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoError(null);
+    setLogoPreview(null);
+    setFormData((prev) => ({ ...prev, logo: null }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
+    if (logoError) {
+      setMessage({ type: 'error', text: logoError });
+      return;
+    }
+
     try {
       setSaving(true);
       setMessage(null);
@@ -101,12 +147,16 @@ const BusinessProfile = () => {
           whatsappNumber: b.whatsappNumber || formData.whatsappNumber,
           address: b.address || formData.address,
           capacity: `${b.capacity || 30} Vehicles / Day`,
-          logo: b.logo || formData.logo,
+          logo: b.logo !== undefined ? b.logo : formData.logo,
         };
         setProfile(updatedProfile);
         setFormData(updatedProfile);
+        setLogoPreview(updatedProfile.logo);
         setIsEditing(false);
         setMessage({ type: 'success', text: 'Business profile updated successfully!' });
+
+        // Dispatch custom event for real-time header & sidebar logo update
+        window.dispatchEvent(new CustomEvent('sparklepro:logo_updated', { detail: updatedProfile.logo }));
       }
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to update business profile' });
@@ -224,11 +274,17 @@ const BusinessProfile = () => {
 
       {/* Header Banner Summary */}
       <div className="bg-gray-50 border border-gray-200/90 rounded-2xl p-5 flex items-center gap-4">
-        <img
-          src={profile.logo || "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200"}
-          alt={profile.ownerName}
-          className="w-16 h-16 rounded-2xl object-cover border border-gray-300 shadow-2xs shrink-0"
-        />
+        {profile.logo ? (
+          <img
+            src={profile.logo}
+            alt={profile.companyName || 'Business Logo'}
+            className="w-16 h-16 rounded-2xl object-cover border border-gray-300 shadow-2xs shrink-0"
+          />
+        ) : (
+          <div className="w-16 h-16 rounded-2xl bg-black text-white flex items-center justify-center font-black text-xl border border-gray-300 shadow-2xs shrink-0">
+            {profile.companyName ? profile.companyName.charAt(0).toUpperCase() : 'S'}
+          </div>
+        )}
         <div>
           <h3 className="text-lg font-extrabold text-gray-900">{profile.companyName || 'My Detailing Workshop'}</h3>
           <p className="text-xs text-gray-500 font-semibold">{profile.ownerName} • Owner</p>
@@ -285,6 +341,70 @@ const BusinessProfile = () => {
         </div>
       ) : (
         <form onSubmit={handleSave} className="bg-white border border-gray-200/90 rounded-3xl p-5 sm:p-7 shadow-2xs space-y-4">
+          {/* Business Logo Upload Area */}
+          <div className="bg-gray-50 border border-gray-200/90 rounded-2xl p-4 sm:p-5 space-y-3">
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+              Business Logo
+            </label>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="shrink-0">
+                {logoPreview ? (
+                  <img
+                    src={logoPreview}
+                    alt="Business Logo Preview"
+                    className="w-20 h-20 rounded-2xl object-cover border-2 border-gray-300 shadow-2xs"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-2xl bg-black text-white flex items-center justify-center font-black text-2xl border-2 border-gray-300 shadow-2xs">
+                    {formData.companyName ? formData.companyName.charAt(0).toUpperCase() : 'S'}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 bg-white hover:bg-gray-100 text-gray-900 border border-gray-300 font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-2xs cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    {logoPreview ? 'Change Logo' : 'Upload Logo'}
+                  </button>
+
+                  {logoPreview && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveLogo}
+                      className="inline-flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Remove Logo
+                    </button>
+                  )}
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleLogoSelect}
+                  className="hidden"
+                />
+
+                <p className="text-[11px] font-semibold text-gray-500">
+                  Recommended: 512 × 512 px. PNG, JPG, or WEBP (Max 2 MB).
+                </p>
+
+                {logoError && (
+                  <p className="text-xs font-bold text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    {logoError}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Company Name</label>

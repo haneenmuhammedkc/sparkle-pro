@@ -11,7 +11,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from "../../../context/AuthContext";
 
 export default function Register({
   onSignUp,
@@ -22,7 +22,7 @@ export default function Register({
 }) {
   const navigate = useNavigate();
   const { register } = useAuth();
-  
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,11 +32,16 @@ export default function Register({
   const [errorMessage, setErrorMessage] = useState("");
 
   const validatePassword = (pass) => {
-    if (!pass || pass.length < 8) return 'Password must be at least 8 characters long.';
-    if (!/[A-Z]/.test(pass)) return 'Password must contain at least one uppercase letter (A-Z).';
-    if (!/[a-z]/.test(pass)) return 'Password must contain at least one lowercase letter (a-z).';
-    if (!/[0-9]/.test(pass)) return 'Password must contain at least one number (0-9).';
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pass)) return 'Password must contain at least one special character (!@#$%^&*).';
+    if (!pass || pass.length < 8)
+      return "Password must be at least 8 characters long.";
+    if (!/[A-Z]/.test(pass))
+      return "Password must contain at least one uppercase letter (A-Z).";
+    if (!/[a-z]/.test(pass))
+      return "Password must contain at least one lowercase letter (a-z).";
+    if (!/[0-9]/.test(pass))
+      return "Password must contain at least one number (0-9).";
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pass))
+      return "Password must contain at least one special character (!@#$%^&*).";
     return null;
   };
 
@@ -64,11 +69,16 @@ export default function Register({
       } else {
         const res = await register({ fullName, email, password });
         if (res.success) {
-          navigate('/verify-email', { state: { email: res.data?.email || email } });
+          navigate("/verify-email", {
+            state: { email: res.data?.email || email },
+          });
         }
       }
     } catch (err) {
-      const msg = err.response?.data?.message || err.message || "Failed to create account. Please try again.";
+      const msg =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to create account. Please try again.";
       setErrorMessage(msg);
     } finally {
       setIsLoading(false);
@@ -232,23 +242,25 @@ export default function Register({
                 <span className="text-gray-600 font-normal text-xs leading-tight">
                   I agree to the{" "}
                   <a
-                    href="#terms"
+                    href="/terms-of-service"
                     onClick={(e) => {
                       e.preventDefault();
                       if (onTermsClick) onTermsClick();
+                      else navigate("/terms-of-service");
                     }}
-                    className="font-semibold text-gray-900 hover:underline"
+                    className="font-semibold text-gray-900 hover:underline cursor-pointer"
                   >
                     Terms of Service
                   </a>{" "}
                   and{" "}
                   <a
-                    href="#privacy"
+                    href="/privacy-policy"
                     onClick={(e) => {
                       e.preventDefault();
                       if (onPrivacyPolicyClick) onPrivacyPolicyClick();
+                      else navigate("/privacy-policy");
                     }}
-                    className="font-semibold text-gray-900 hover:underline"
+                    className="font-semibold text-gray-900 hover:underline cursor-pointer"
                   >
                     Privacy Policy
                   </a>
@@ -271,11 +283,14 @@ export default function Register({
           </form>
 
           {/* OR Divider */}
-          <div className="relative flex items-center justify-center my-6">
-            <div className="w-full border-t border-gray-200"></div>
-            <span className="relative bg-white px-3 text-[11px] font-semibold text-gray-400 tracking-wider uppercase">
+          <div className="flex w-full items-center gap-4 my-6">
+            <div className="h-px flex-1 bg-gray-200"></div>
+
+            <span className="shrink-0 text-[11px] font-semibold text-gray-400 tracking-wider uppercase">
               OR
             </span>
+
+            <div className="h-px flex-1 bg-gray-200"></div>
           </div>
 
           {/* Google Register Button */}
@@ -325,32 +340,35 @@ export default function Register({
         <footer className="w-full max-w-[400px] mx-auto pt-6 text-center">
           <div className="flex items-center justify-center gap-6 text-[11px] text-gray-500 font-medium">
             <a
-              href="#privacy"
+              href="/privacy-policy"
               onClick={(e) => {
                 e.preventDefault();
                 if (onPrivacyPolicyClick) onPrivacyPolicyClick();
+                else navigate("/privacy-policy");
               }}
-              className="hover:text-gray-900 transition-colors"
+              className="hover:text-gray-900 transition-colors cursor-pointer"
             >
               Privacy Policy
             </a>
             <a
-              href="#terms"
+              href="/terms-of-service"
               onClick={(e) => {
                 e.preventDefault();
                 if (onTermsClick) onTermsClick();
+                else navigate("/terms-of-service");
               }}
-              className="hover:text-gray-900 transition-colors"
+              className="hover:text-gray-900 transition-colors cursor-pointer"
             >
               Terms of Service
             </a>
             <a
-              href="#help"
+              href="/help"
               onClick={(e) => {
                 e.preventDefault();
                 if (onNeedHelpClick) onNeedHelpClick();
+                else navigate("/help");
               }}
-              className="hover:text-gray-900 transition-colors"
+              className="hover:text-gray-900 transition-colors cursor-pointer"
             >
               Need Help?
             </a>

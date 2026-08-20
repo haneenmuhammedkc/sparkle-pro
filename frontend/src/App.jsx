@@ -27,6 +27,10 @@ import Review from './features/owner/setup/pages/Review';
 import TrackVehicle from './features/user/tracking/pages/TrackVehicle';
 import VehicleDetails from './features/user/tracking/pages/VehicleDetails';
 
+import PrivacyPolicy from './features/public/pages/PrivacyPolicy';
+import TermsOfService from './features/public/pages/TermsOfService';
+import Help from './features/public/pages/Help';
+
 import { AuthProvider } from './context/AuthContext.jsx';
 import ProtectedRoute from './routes/ProtectedRoute.jsx';
 
@@ -35,6 +39,11 @@ const App = () => {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Public Legal & Help Pages */}
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/help" element={<Help />} />
+
           {/* User Side Public Pages */}
           <Route path="/user/track" element={<TrackVehicle />} />
           <Route path="/user/details" element={<VehicleDetails />} />

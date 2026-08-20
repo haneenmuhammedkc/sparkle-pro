@@ -87,7 +87,7 @@ export const createJob = async (ownerId, data) => {
     resolvedServices = inputServices.map((s) => ({
       serviceId: s.serviceId || s.id || null,
       name: s.name || s.serviceName || 'Standard Service',
-      price: Number(s.price) || 0,
+      price: typeof s.price === 'number' ? (isNaN(s.price) ? 0 : s.price) : (Number(String(s.price || 0).replace(/[^0-9.]/g, '')) || 0),
       duration: s.duration || s.time || '30m',
     }));
   } else if (Array.isArray(selectedServices) && selectedServices.length > 0) {

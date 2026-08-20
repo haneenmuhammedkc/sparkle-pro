@@ -11,7 +11,7 @@ const api = axios.create({
   withCredentials: true, // Enables browser to automatically send and receive HttpOnly cookies
 });
 
-// Mutex / Queue state for parallel 401 requests
+// Single-flight refresh mutex & subscriber queue state
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -26,6 +26,14 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
+const clearAuthAndRedirect = () => {
+  localStorage.removeItem('sparklepro_access_token');
+  localStorage.removeItem('sparklepro_refresh_token');
+  if (typeof window !== 'undefined' && window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+    window.location.href = '/login';
+  }
+};
+
 // Request Interceptor: Attach Access Token
 api.interceptors.request.use(
   (config) => {
@@ -38,7 +46,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Mutex Refresh Queue & 401 Error Handling
+// Response Interceptor: Single-Flight Refresh & Retry Queue
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -53,15 +61,22 @@ api.interceptors.response.use(
     }
 
     const { status, data } = error.response;
+    const requestUrl = originalRequest?.url || '';
 
-    // Handle 401 Unauthorized & Mutex Token Refresh
-    if (
-      status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url.includes('/auth/login') &&
-      !originalRequest.url.includes('/auth/register') &&
-      !originalRequest.url.includes('/auth/refresh-token')
-    ) {
+    // Auth endpoints that MUST NOT trigger refresh attempt on 401
+    const isAuthEndpoint =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/register') ||
+      requestUrl.includes('/auth/refresh-token') ||
+      requestUrl.includes('/auth/logout') ||
+      requestUrl.includes('/auth/forgot-password') ||
+      requestUrl.includes('/auth/reset-password');
+
+    // Handle 401 Unauthorized & Single-Flight Token Refresh
+    if (status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+      const storedRefreshToken = localStorage.getItem('sparklepro_refresh_token');
+
+      // If already refreshing, join subscriber queue and wait for the single in-flight refresh promise
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -77,22 +92,31 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // HttpOnly refresh cookie is sent automatically via withCredentials: true
-        const res = await api.post('/auth/refresh-token');
+        // Send refresh request with both HttpOnly cookie (withCredentials) AND request body fallback
+        const res = await api.post('/auth/refresh-token', {
+          refreshToken: storedRefreshToken || undefined,
+        });
 
-        if (res.data.success && res.data.data?.accessToken) {
-          const newAccessToken = res.data.data.accessToken;
+        if (res.data?.success && res.data?.data?.accessToken) {
+          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = res.data.data;
+
+          // Persist BOTH tokens (Access Token & Rotated Refresh Token)
           localStorage.setItem('sparklepro_access_token', newAccessToken);
+          if (newRefreshToken) {
+            localStorage.setItem('sparklepro_refresh_token', newRefreshToken);
+          }
 
+          // Process queued subscriber requests with new access token
           processQueue(null, newAccessToken);
+
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return api(originalRequest);
+        } else {
+          throw new Error(res.data?.message || 'Refresh failed');
         }
       } catch (refreshErr) {
         processQueue(refreshErr, null);
-        localStorage.removeItem('sparklepro_access_token');
-        localStorage.removeItem('sparklepro_refresh_token'); // Cleanup legacy tokens
-        window.location.href = '/login';
+        clearAuthAndRedirect();
         return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;

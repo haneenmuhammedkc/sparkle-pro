@@ -166,76 +166,101 @@ const NewJob = () => {
     }
   };
 
-  // Resolve dynamic vehicle-specific business services strictly from Settings API
-  const resolveServicesForCategory = () => {
-    if (wheelCategory === 'custom') {
-      const customConfigured = (businessServices || []).filter(
-        (s) => (s.vehicleCategory === 'custom' || s.category === 'Van' || s.category === 'Truck') && s.enabled !== false
-      );
+  const parseNumericPrice = (val) => {
+    if (typeof val === 'number') return isNaN(val) || val <= 0 ? 0 : val;
+    if (!val) return 0;
+    const cleaned = String(val).replace(/[^0-9.]/g, '');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) || parsed <= 0 ? 0 : parsed;
+  };
 
-      if (customConfigured.length > 0) {
-        return customConfigured.map((s, idx) => ({
-          id: String(s.id || s._id || `srv-custom-${idx}`),
-          serviceId: String(s.id || s._id || `srv-custom-${idx}`),
-          name: s.name,
-          time: s.duration || '30m',
-          price: Number(s.price || 0),
-          icon: Truck,
-        }));
+  const resolveServicePrice = (s, targetCategory = '') => {
+    if (!s) return 0;
+
+    // Priority A: Direct positive price
+    const directPrice = parseNumericPrice(s.price);
+    if (directPrice > 0) return directPrice;
+
+    // Priority B: Vehicle-specific pricing
+    if (s.pricing && typeof s.pricing === 'object') {
+      const cat = String(targetCategory || s.vehicleCategory || s.category || '').toLowerCase();
+      let catObj = null;
+
+      if (cat === '2-wheeler' || cat === 'bike') {
+        catObj = s.pricing.Bike || s.pricing['2-wheeler'] || s.pricing.bike;
+      } else if (cat === '4-wheeler' || cat === 'car') {
+        catObj = s.pricing.Car || s.pricing['4-wheeler'] || s.pricing.car;
+      } else if (cat === 'suv') {
+        catObj = s.pricing.SUV || s.pricing.suv;
+      } else if (cat === 'custom' || cat === 'van' || cat === 'truck') {
+        catObj = s.pricing.Truck || s.pricing.Van || s.pricing.custom;
       }
 
-      return [
-        {
-          id: 'custom-service-1',
-          serviceId: 'custom-service-1',
-          name: customDetails.serviceName || 'Custom Service Package',
-          time: customDetails.time || '30m',
-          price: Number(customDetails.price) || 350,
-          icon: Truck,
-        },
-      ];
+      if (catObj) {
+        const vPrice = parseNumericPrice(typeof catObj === 'object' ? (catObj.price || catObj.startingPrice) : catObj);
+        if (vPrice > 0) return vPrice;
+      }
+
+      for (const key of Object.keys(s.pricing)) {
+        const entry = s.pricing[key];
+        const p = parseNumericPrice(typeof entry === 'object' ? (entry.price || entry.startingPrice) : entry);
+        if (p > 0) return p;
+      }
     }
 
-    if (businessServices && Array.isArray(businessServices) && businessServices.length > 0) {
-      const isTwoWheeler = wheelCategory === '2-wheeler';
-      const isSUVType = vehicleType === 'SUV / Crossover';
+    // Priority C: startingPrice
+    const startPrice = parseNumericPrice(s.startingPrice);
+    if (startPrice > 0) return startPrice;
 
-      const filtered = businessServices
-        .filter((s) => {
-          if (s.enabled === false) return false;
-          const cat = (s.vehicleCategory || s.category || '').toLowerCase();
+    // Priority D: basePrice
+    const basePrice = parseNumericPrice(s.basePrice);
+    if (basePrice > 0) return basePrice;
 
-          if (isTwoWheeler) {
-            return cat === '2-wheeler' || cat === 'bike';
-          } else {
-            if (cat === '4-wheeler' || cat === 'car') {
-              return true;
-            }
-            if (cat === 'suv') {
-              return isSUVType;
-            }
-            return false;
-          }
-        })
-        .map((s, idx) => {
-          const realId = s.id || s._id || ('biz-srv-' + idx);
-          const priceVal = Number(s.price !== undefined ? s.price : (isTwoWheeler ? s.pricing?.Bike?.price : s.pricing?.Car?.price) || 0);
-          const timeVal = s.duration || '30m';
+    // Priority E: amount
+    const amtPrice = parseNumericPrice(s.amount);
+    if (amtPrice > 0) return amtPrice;
 
-          return {
-            id: String(realId),
-            serviceId: String(realId),
-            name: s.name,
-            time: timeVal,
-            price: priceVal,
-            icon: isTwoWheeler ? Bike : Droplet,
-          };
-        });
+    return 0;
+  };
 
-      return filtered;
+  // Resolve dynamic vehicle-specific business services strictly from Settings API
+  const resolveServicesForCategory = () => {
+    if (!businessServices || !Array.isArray(businessServices) || businessServices.length === 0) {
+      return [];
     }
 
-    return [];
+    const isTwoWheeler = wheelCategory === '2-wheeler';
+    const isCustom = wheelCategory === 'custom';
+
+    const filtered = businessServices
+      .filter((s) => {
+        if (s.enabled === false) return false;
+        const cat = String(s.vehicleCategory || s.category || '').toLowerCase();
+
+        if (isTwoWheeler) {
+          return cat === '2-wheeler' || cat === 'bike' || cat === 'scooter' || cat === 'moped';
+        } else if (isCustom) {
+          return cat === 'custom' || cat === 'van' || cat === 'truck' || cat === 'bus' || cat === 'rickshaw' || cat === 'heavy';
+        } else {
+          return cat === '4-wheeler' || cat === 'car' || cat === 'suv' || cat === 'sedan' || cat === 'hatchback' || cat === 'pickup';
+        }
+      })
+      .map((s, idx) => {
+        const realId = s.id || s._id || ('biz-srv-' + idx);
+        const priceVal = resolveServicePrice(s, wheelCategory);
+        const timeVal = s.duration || s.time || '30m';
+
+        return {
+          id: String(realId),
+          serviceId: String(realId),
+          name: s.name,
+          time: timeVal,
+          price: priceVal,
+          icon: isTwoWheeler ? Bike : isCustom ? Truck : Droplet,
+        };
+      });
+
+    return filtered;
   };
 
   const activeAvailableServices = resolveServicesForCategory();
@@ -594,7 +619,7 @@ const NewJob = () => {
                             </div>
                             <div>
                               <h4 className="text-sm font-bold tracking-tight">
-                                {service.name} <span className={isSelected ? "text-emerald-300 font-extrabold" : "text-emerald-700 font-extrabold"}>— ₹{service.price}</span>
+                                {service.name}
                               </h4>
                               <span className={`text-xs font-semibold block mt-0.5 ${isSelected ? 'text-gray-300' : 'text-gray-500'}`}>
                                 Duration: {service.time}
@@ -603,7 +628,9 @@ const NewJob = () => {
                           </div>
 
                           <div className="text-right">
-                            <span className="text-base font-black block">₹{service.price}</span>
+                            <span className="text-base font-black block">
+                              {service.price > 0 ? `₹${service.price}` : '--'}
+                            </span>
                             {isSelected && (
                               <span className="inline-block mt-1 bg-white text-gray-900 text-[10px] font-black px-1.5 py-0.5 rounded-md shadow-2xs">
                                 ADDED

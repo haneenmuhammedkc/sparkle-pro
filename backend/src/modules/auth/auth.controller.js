@@ -32,10 +32,9 @@ export const verifyEmail = async (req, res, next) => {
       ipAddress: req.ip,
     });
 
-    // Set Refresh Token in HttpOnly cookie
+    // Set Refresh Token in HttpOnly cookie and return in JSON response for dual storage
     if (result.refreshToken) {
       res.cookie('sparklepro_refresh_token', result.refreshToken, getCookieOptions());
-      delete result.refreshToken; // Do not leak in JSON response
     }
 
     return successResponse(res, 200, 'Email address verified successfully!', result);
@@ -64,10 +63,9 @@ export const login = async (req, res, next) => {
       ipAddress: req.ip,
     });
 
-    // Set Refresh Token in HttpOnly cookie
+    // Set Refresh Token in HttpOnly cookie and return in JSON response for dual storage
     if (result.refreshToken) {
       res.cookie('sparklepro_refresh_token', result.refreshToken, getCookieOptions());
-      delete result.refreshToken; // Do not leak in JSON response
     }
 
     return successResponse(res, 200, 'Login successful', result);
@@ -85,16 +83,17 @@ export const refreshToken = async (req, res, next) => {
       ipAddress: req.ip,
     });
 
-    // Set updated Refresh Token in HttpOnly cookie (RTR)
+    // Set updated Refresh Token in HttpOnly cookie (RTR) and return in JSON response
     if (result.refreshToken) {
       res.cookie('sparklepro_refresh_token', result.refreshToken, getCookieOptions());
-      delete result.refreshToken; // Do not leak in JSON response
     }
 
     return successResponse(res, 200, 'Access token refreshed successfully', result);
   } catch (error) {
-    // If refresh fails or reuse detected, clear cookie
-    res.clearCookie('sparklepro_refresh_token', { path: '/api/auth' });
+    // Only clear cookie for authentication failures (400, 401, 403), NOT for DB/500 errors!
+    if (error.statusCode && error.statusCode < 500) {
+      res.clearCookie('sparklepro_refresh_token', { path: '/api/auth' });
+    }
     next(error);
   }
 };

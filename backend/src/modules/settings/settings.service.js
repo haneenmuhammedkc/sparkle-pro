@@ -101,7 +101,29 @@ export const updateProfile = async (userId, businessId, data) => {
   if (phone !== undefined) business.mobileNumber = phone.trim();
   if (whatsappNumber !== undefined) business.whatsappNumber = whatsappNumber.trim();
   if (address !== undefined) business.address = address.trim();
-  if (logo !== undefined) business.logo = logo;
+  if (logo !== undefined) {
+    if (logo === null || logo === '') {
+      business.logo = null;
+    } else if (typeof logo === 'string') {
+      const isDataUrl = /^data:image\/(png|jpeg|jpg|webp);base64,/i.test(logo);
+      const isHttpUrl = /^https?:\/\/.+/i.test(logo);
+      if (!isDataUrl && !isHttpUrl) {
+        const error = new Error('Please upload a PNG, JPG, or WEBP image.');
+        error.statusCode = 400;
+        throw error;
+      }
+      if (isDataUrl && logo.length > 3 * 1024 * 1024) {
+        const error = new Error('Logo image must be smaller than 2 MB.');
+        error.statusCode = 400;
+        throw error;
+      }
+      business.logo = logo;
+    } else {
+      const error = new Error('Invalid logo payload format.');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
 
   await business.save();
   return getSettings(userId, business._id);
@@ -194,6 +216,64 @@ export const updateWorkshop = async (userId, businessId, data) => {
   return getSettings(userId, business._id);
 };
 
+export const parseNumericPrice = (val) => {
+  if (typeof val === 'number') return isNaN(val) || val <= 0 ? 0 : val;
+  if (!val) return 0;
+  const cleaned = String(val).replace(/[^0-9.]/g, '');
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) || parsed <= 0 ? 0 : parsed;
+};
+
+export const resolveServicePrice = (s, targetCategory = '') => {
+  if (!s) return 0;
+
+  // Priority A: Direct positive price
+  const directPrice = parseNumericPrice(s.price);
+  if (directPrice > 0) return directPrice;
+
+  // Priority B: Vehicle-specific pricing (Bike, Car, SUV, Truck, etc.)
+  if (s.pricing && typeof s.pricing === 'object') {
+    const cat = String(targetCategory || s.vehicleCategory || s.category || '').toLowerCase();
+    let catObj = null;
+
+    if (cat === '2-wheeler' || cat === 'bike') {
+      catObj = s.pricing.Bike || s.pricing['2-wheeler'] || s.pricing.bike;
+    } else if (cat === '4-wheeler' || cat === 'car') {
+      catObj = s.pricing.Car || s.pricing['4-wheeler'] || s.pricing.car;
+    } else if (cat === 'suv') {
+      catObj = s.pricing.SUV || s.pricing.suv;
+    } else if (cat === 'custom' || cat === 'van' || cat === 'truck') {
+      catObj = s.pricing.Truck || s.pricing.Van || s.pricing.custom;
+    }
+
+    if (catObj) {
+      const vPrice = parseNumericPrice(typeof catObj === 'object' ? (catObj.price || catObj.startingPrice) : catObj);
+      if (vPrice > 0) return vPrice;
+    }
+
+    // Try any category key inside s.pricing
+    for (const key of Object.keys(s.pricing)) {
+      const entry = s.pricing[key];
+      const p = parseNumericPrice(typeof entry === 'object' ? (entry.price || entry.startingPrice) : entry);
+      if (p > 0) return p;
+    }
+  }
+
+  // Priority C: startingPrice
+  const startPrice = parseNumericPrice(s.startingPrice);
+  if (startPrice > 0) return startPrice;
+
+  // Priority D: basePrice
+  const basePrice = parseNumericPrice(s.basePrice);
+  if (basePrice > 0) return basePrice;
+
+  // Priority E: amount
+  const amtPrice = parseNumericPrice(s.amount);
+  if (amtPrice > 0) return amtPrice;
+
+  return 0;
+};
+
 export const normalizeVehicleSpecificServices = (servicesConfigured = []) => {
   const result = [];
   servicesConfigured.forEach((s, idx) => {
@@ -208,12 +288,13 @@ export const normalizeVehicleSpecificServices = (servicesConfigured = []) => {
           Van: 'custom',
         };
         const vCat = catMap[catKey] || catKey.toLowerCase();
+        const p = parseNumericPrice(details.price || details.startingPrice) || resolveServicePrice(s, vCat);
         result.push({
           id: `${s.id || s._id || 'srv-' + idx}-${vCat}`,
           name: `${s.name} (${catKey})`,
           description: s.description || '',
           vehicleCategory: vCat,
-          price: Number(details.price || 0),
+          price: p,
           duration: details.duration || s.duration || '30 mins',
           enabled: s.enabled !== undefined ? Boolean(s.enabled) : true,
         });
@@ -232,9 +313,7 @@ export const normalizeVehicleSpecificServices = (servicesConfigured = []) => {
       };
       const rawCat = s.vehicleCategory || s.category || '4-wheeler';
       const normCat = catMap[rawCat] || rawCat;
-      const rawPrice = s.price !== undefined
-        ? Number(s.price)
-        : Number(String(s.startingPrice || '0').replace(/[^0-9]/g, '')) || 0;
+      const rawPrice = resolveServicePrice(s, normCat);
 
       result.push({
         id: String(s.id || s._id || `srv-${idx + 1}`),

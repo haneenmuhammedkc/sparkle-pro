@@ -76,8 +76,21 @@ const Settings = () => {
         // Fallback silently if offline
       }
     };
+
     fetchHeaderData();
-    return () => { isMounted = false; };
+
+    const handleLogoUpdate = (e) => {
+      if (isMounted && e.detail !== undefined) {
+        setHeaderData((prev) => ({ ...prev, logo: e.detail }));
+      }
+    };
+
+    window.addEventListener('sparklepro:logo_updated', handleLogoUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('sparklepro:logo_updated', handleLogoUpdate);
+    };
   }, []);
 
   // Section Selector Helper
@@ -168,11 +181,17 @@ const Settings = () => {
             
             {/* Business Profile Summary Banner */}
             <div className="bg-white border border-gray-200/90 rounded-3xl p-5 shadow-2xs flex items-center gap-3.5">
-              <img
-                src={headerData.logo || "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200"}
-                alt={headerData.ownerName}
-                className="w-12 h-12 rounded-2xl object-cover border border-gray-200 shadow-2xs shrink-0"
-              />
+              {headerData.logo ? (
+                <img
+                  src={headerData.logo}
+                  alt={headerData.businessName}
+                  className="w-12 h-12 rounded-2xl object-cover border border-gray-200 shadow-2xs shrink-0"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center font-black text-base border border-gray-200 shadow-2xs shrink-0">
+                  {headerData.businessName ? headerData.businessName.charAt(0).toUpperCase() : 'S'}
+                </div>
+              )}
               <div className="min-w-0">
                 <h3 className="text-base font-extrabold text-gray-900 truncate">{headerData.businessName}</h3>
                 <p className="text-xs text-gray-500 font-semibold truncate">{headerData.ownerName}</p>
@@ -261,11 +280,17 @@ const Settings = () => {
                 className="bg-white border border-gray-200/90 rounded-3xl p-5 shadow-2xs space-y-4"
               >
                 <div className="flex items-center gap-3.5">
-                  <img
-                    src={headerData.logo || "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200"}
-                    alt={headerData.ownerName}
-                    className="w-14 h-14 rounded-2xl object-cover border border-gray-200 shadow-2xs shrink-0"
-                  />
+                  {headerData.logo ? (
+                    <img
+                      src={headerData.logo}
+                      alt={headerData.businessName}
+                      className="w-14 h-14 rounded-2xl object-cover border border-gray-200 shadow-2xs shrink-0"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center font-black text-lg border border-gray-200 shadow-2xs shrink-0">
+                      {headerData.businessName ? headerData.businessName.charAt(0).toUpperCase() : 'S'}
+                    </div>
+                  )}
                   <div>
                     <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">
                       {headerData.businessName}

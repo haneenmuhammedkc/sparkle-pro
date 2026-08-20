@@ -45,7 +45,7 @@ export const saveStep1BusinessInfo = async (ownerId, data) => {
       email: email.toLowerCase().trim(),
       mobileNumber: mobileNumber || '',
       whatsappNumber: whatsappNumber || '',
-      businessType: businessType || 'car-wash',
+      businessType: typeof businessType === 'string' ? businessType.trim() : (businessType || 'car-wash'),
       logo: logoPreview || null,
     });
   } else {
@@ -54,7 +54,7 @@ export const saveStep1BusinessInfo = async (ownerId, data) => {
     business.email = email.toLowerCase().trim();
     if (mobileNumber !== undefined) business.mobileNumber = mobileNumber;
     if (whatsappNumber !== undefined) business.whatsappNumber = whatsappNumber;
-    if (businessType) business.businessType = businessType;
+    if (businessType) business.businessType = typeof businessType === 'string' ? businessType.trim() : businessType;
     if (logoPreview !== undefined) business.logo = logoPreview;
   }
 

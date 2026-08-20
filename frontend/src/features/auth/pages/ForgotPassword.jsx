@@ -117,32 +117,35 @@ const ForgotPassword = ({
       <footer className="w-full max-w-[420px] mx-auto pt-6 text-center">
         <div className="flex items-center justify-center gap-6 sm:gap-8 text-xs text-gray-500 font-medium">
           <a
-            href="#privacy"
+            href="/privacy-policy"
             onClick={(e) => {
               e.preventDefault();
               if (onPrivacyPolicyClick) onPrivacyPolicyClick();
+              else navigate('/privacy-policy');
             }}
-            className="hover:text-gray-900 transition-colors"
+            className="hover:text-gray-900 transition-colors cursor-pointer"
           >
             Privacy Policy
           </a>
           <a
-            href="#terms"
+            href="/terms-of-service"
             onClick={(e) => {
               e.preventDefault();
               if (onTermsClick) onTermsClick();
+              else navigate('/terms-of-service');
             }}
-            className="hover:text-gray-900 transition-colors"
+            className="hover:text-gray-900 transition-colors cursor-pointer"
           >
             Terms of Service
           </a>
           <a
-            href="#help"
+            href="/help"
             onClick={(e) => {
               e.preventDefault();
               if (onNeedHelpClick) onNeedHelpClick();
+              else navigate('/help');
             }}
-            className="hover:text-gray-900 transition-colors"
+            className="hover:text-gray-900 transition-colors cursor-pointer"
           >
             Need Help?
           </a>

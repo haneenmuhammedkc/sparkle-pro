@@ -27,11 +27,19 @@ const errorMiddleware = (err, req, res, next) => {
   // Handle Mongoose Validation Error
   if (err.name === 'ValidationError') {
     statusCode = 422;
-    message = 'Validation Error';
     errors = Object.values(err.errors).map((val) => ({
       field: val.path,
       message: val.message,
     }));
+    message = errors.length > 0
+      ? errors.map((e) => e.message).join(', ')
+      : 'Validation Error';
+  }
+
+  // Handle MongoDB Connection / Network Errors
+  if (err.name === 'MongoServerSelectionError' || err.name === 'MongoNetworkError' || err.name === 'MongooseServerSelectionError') {
+    statusCode = 503;
+    message = 'Database service is temporarily unavailable. Please try again in a moment.';
   }
 
   // Return standardized error response
